@@ -34,7 +34,7 @@ jobs:
           cache: 'npm'
 
       - name: 安裝依賴
-        run: npm ci
+        run: npm install
 
       - name: 建置網站 (Build)
         run: npm run build
