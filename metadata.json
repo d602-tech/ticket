@@ -1,0 +1,5 @@
+{
+  "name": "SafetyGuard - 違規講習管理系統",
+  "description": "管理承攬商違規、追蹤講習期限並自動通知工程承辦人員的綜合系統。",
+  "requestFramePermissions": []
+}
