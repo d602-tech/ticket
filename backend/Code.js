@@ -20,13 +20,13 @@ function handleRequest(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // === 自動初始化功能 ===
-    // 檢查表單是否存在，若不存在則自動建立並加上標題
     initSheet(ss, 'Projects', ['id', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail']);
-    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName']);
+    // 新增 fileUrl 欄位
+    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl']);
 
     var output = {};
 
-    // 處理 POST 請求 (儲存或寄信)
+    // 處理 POST 請求 (儲存、寄信、上傳)
     if (e && e.postData) {
       var data = JSON.parse(e.postData.contents);
       
@@ -40,7 +40,47 @@ function handleRequest(e) {
         output.message = 'Email sent';
       } 
       else if (data.action === 'sync') {
-        // 同步資料：如果前端有傳 projects 就更新，有傳 violations 就更新
+        // 1. 處理檔案上傳 (如果有的話)
+        var uploadedFileUrl = "";
+        if (data.fileUpload && data.fileUpload.fileData) {
+            try {
+                // 建立資料夾 (如果不存在)
+                var folderName = "SafetyGuard_Uploads";
+                var folders = DriveApp.getFoldersByName(folderName);
+                var folder;
+                if (folders.hasNext()) {
+                    folder = folders.next();
+                } else {
+                    folder = DriveApp.createFolder(folderName);
+                }
+
+                // 解碼 Base64 並建立檔案
+                var contentType = data.fileUpload.fileData.type;
+                var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, data.fileUpload.fileData.name);
+                var file = folder.createFile(blob);
+                
+                // 設定檔案為公開檢視 (或保持私有但只有使用者能看，這裡設為 Anyone with link 方便測試)
+                file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+                
+                uploadedFileUrl = file.getUrl(); // 取得檔案連結
+                
+                // 更新該筆違規的 fileUrl
+                if (data.violations) {
+                   data.violations = data.violations.map(function(v) {
+                       if (v.id === data.fileUpload.violationId) {
+                           v.fileUrl = uploadedFileUrl;
+                       }
+                       return v;
+                   });
+                }
+
+            } catch (err) {
+                // 檔案上傳失敗不應阻擋資料儲存
+                output.fileError = err.toString();
+            }
+        }
+
+        // 2. 同步資料
         if (data.projects) {
           saveData(ss, 'Projects', data.projects);
         }
@@ -71,11 +111,17 @@ function initSheet(ss, sheetName, headers) {
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(headers); // 建立第一列標題
+    sheet.appendRow(headers); 
   } else {
-    // 確保即使表單存在，如果全空也補上標題
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(headers);
+    } else {
+        // 檢查標題列是否需要補新欄位 (例如新增了 fileUrl)
+        var currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        if (currentHeaders.length < headers.length) {
+            // 補上缺少的標題
+            sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+        }
     }
   }
 }
@@ -83,7 +129,6 @@ function initSheet(ss, sheetName, headers) {
 // 讀取資料 Helper
 function loadData(ss, sheetName) {
   var sheet = ss.getSheetByName(sheetName);
-  // 如果只有標題列或全空，回傳空陣列
   if (sheet.getLastRow() <= 1) return [];
 
   var rows = sheet.getDataRange().getValues();
@@ -93,11 +138,9 @@ function loadData(ss, sheetName) {
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
     var obj = {};
-    // 將陣列轉為 JSON 物件
     for (var j = 0; j < headers.length; j++) {
       var key = headers[j];
       var value = row[j];
-      // 處理日期格式，轉為字串
       if (value instanceof Date) {
         obj[key] = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
       } else {
@@ -109,25 +152,23 @@ function loadData(ss, sheetName) {
   return data;
 }
 
-// 儲存資料 Helper (全量更新模式)
+// 儲存資料 Helper (全量更新)
 function saveData(ss, sheetName, data) {
   var sheet = ss.getSheetByName(sheetName);
+  // 總是讀取最新的 Headers 確保欄位對齊
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   
-  // 清除舊資料 (保留第一列標題)
   if (sheet.getLastRow() > 1) {
     sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
   }
   
   if (!data || data.length === 0) return;
   
-  // 將 JSON 物件轉回陣列
   var newRows = data.map(function(item) {
     return headers.map(function(header) {
       return item[header] || '';
     });
   });
   
-  // 寫入新資料
   sheet.getRange(2, 1, newRows.length, newRows[0].length).setValues(newRows);
 }

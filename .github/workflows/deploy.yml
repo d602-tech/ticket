@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  # 當推送到 main 分支時觸發
+  push:
+    branches: ["main"]
+
+  # 允許手動從 Actions 頁籤觸發
+  workflow_dispatch:
+
+# 設定權限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 允許同時只有一個部署在跑
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 建置工作
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 建置網站 (Build)
+        run: npm run build
+
+      - name: 上傳建置檔案
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  # 部署工作
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deployment-pages@v4

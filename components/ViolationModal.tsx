@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Calendar, ChevronDown } from 'lucide-react';
+import { X, Upload, Calendar, ChevronDown, FileText } from 'lucide-react';
 import { Project, Violation, ViolationStatus } from '../types';
 import { addDays, generateId } from '../utils';
 import { COMMON_VIOLATIONS } from '../services/storageService';
@@ -7,7 +7,7 @@ import { COMMON_VIOLATIONS } from '../services/storageService';
 interface ViolationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (violation: Violation) => void;
+  onSave: (violation: Violation, fileData?: { name: string, type: string, base64: string }) => void;
   projects: Project[];
 }
 
@@ -20,6 +20,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     status: ViolationStatus.PENDING,
   });
   const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   useEffect(() => {
     if (formData.violationDate) {
@@ -47,9 +48,38 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.contractorName || !formData.projectName || !formData.violationDate || !formData.lectureDeadline) return;
+
+    setIsProcessing(true);
+
+    let filePayload = undefined;
+
+    // 如果有檔案，轉為 Base64
+    if (file) {
+        try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = error => reject(error);
+            });
+            // 移除 data:image/png;base64, 前綴
+            const base64Content = base64.split(',')[1];
+            
+            filePayload = {
+                name: file.name,
+                type: file.type,
+                base64: base64Content
+            };
+        } catch (error) {
+            console.error("File processing failed", error);
+            alert("檔案處理失敗，請重試");
+            setIsProcessing(false);
+            return;
+        }
+    }
 
     const newViolation: Violation = {
       id: generateId(),
@@ -60,9 +90,11 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       description: formData.description || '',
       status: ViolationStatus.PENDING,
       fileName: file ? file.name : undefined,
+      fileUrl: '', // 後端處理後會填入
     };
 
-    onSave(newViolation);
+    onSave(newViolation, filePayload);
+    
     // Reset
     setFormData({
         contractorName: '',
@@ -73,6 +105,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
         lectureDeadline: ''
     });
     setFile(null);
+    setIsProcessing(false);
     onClose();
   };
 
@@ -177,20 +210,23 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
 
           {/* File Upload */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單 (圖片/PDF)</label>
             <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${file ? 'border-indigo-300 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}`}>
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         {file ? (
-                             <p className="text-sm text-indigo-600 font-medium">{file.name}</p>
+                             <div className="flex items-center gap-2">
+                                <FileText className="w-6 h-6 text-indigo-600" />
+                                <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{file.name}</p>
+                             </div>
                         ) : (
                             <>
                                 <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                                <p className="text-xs text-slate-500">點擊上傳圖片或PDF</p>
+                                <p className="text-xs text-slate-500">點擊上傳</p>
                             </>
                         )}
                     </div>
-                    <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 </label>
             </div>
           </div>
@@ -199,15 +235,17 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+              disabled={isProcessing}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-200"
+              disabled={isProcessing}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-200 disabled:bg-slate-400 disabled:shadow-none"
             >
-              儲存紀錄
+              {isProcessing ? '處理中...' : '儲存紀錄'}
             </button>
           </div>
 

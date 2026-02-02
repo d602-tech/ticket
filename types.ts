@@ -11,6 +11,7 @@ export interface Violation {
   lectureDeadline: string; // ISO Date String YYYY-MM-DD
   description: string;
   fileName?: string;
+  fileUrl?: string; // 新增：Google Drive 檔案連結
   status: ViolationStatus;
 }
 

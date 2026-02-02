@@ -18,7 +18,8 @@ import {
   LogOut,
   X,
   Loader2,
-  Database
+  Database,
+  ExternalLink
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -84,18 +85,27 @@ function App() {
       setView('DASHBOARD');
   };
 
-  const handleSaveViolation = async (newViolation: Violation) => {
+  const handleSaveViolation = async (newViolation: Violation, fileData?: { name: string, type: string, base64: string }) => {
     setIsLoading(true);
     try {
         const updatedList = [newViolation, ...violations];
         // 樂觀更新 (Optimistic Update)
         setViolations(updatedList); 
+        
+        // 準備檔案上傳參數
+        const uploadPayload = fileData ? {
+            violationId: newViolation.id,
+            fileData: fileData
+        } : undefined;
+
         // 同步後端
-        const response = await syncData(undefined, updatedList);
-        // 使用後端確認的資料更新
+        const response = await syncData(undefined, updatedList, uploadPayload);
+        
+        // 使用後端確認的資料更新 (這時後端應該已經填回 fileUrl)
         setViolations(response.violations);
     } catch (e) {
-        alert('儲存失敗');
+        console.error(e);
+        alert('儲存失敗：' + (e as Error).message);
     } finally {
         setIsLoading(false);
     }
@@ -303,12 +313,22 @@ function App() {
                                         <div className="text-sm text-slate-700 truncate" title={violation.description}>
                                             {violation.description}
                                         </div>
-                                        {violation.fileName && (
-                                            <div className="flex items-center gap-1 mt-1 text-xs text-indigo-600 cursor-pointer hover:underline">
+                                        {violation.fileUrl ? (
+                                             <a 
+                                                href={violation.fileUrl} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="flex items-center gap-1 mt-1 text-xs text-indigo-600 cursor-pointer hover:underline"
+                                            >
                                                 <Download size={12} />
-                                                {violation.fileName}
+                                                查看罰單 ({violation.fileName || '附件'})
+                                            </a>
+                                        ) : violation.fileName ? (
+                                            <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+                                                <FileWarning size={12} />
+                                                {violation.fileName} (未上傳)
                                             </div>
-                                        )}
+                                        ) : null}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="text-sm text-slate-600">{formatDate(violation.lectureDeadline)}</div>
