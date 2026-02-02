@@ -1,13 +1,23 @@
 // API URL 金鑰名稱
 export const GAS_URL_KEY = 'safety_guard_gas_url';
 
-export const getApiUrl = () => localStorage.getItem(GAS_URL_KEY) || '';
+// 從環境變數取得預設 URL
+const DEFAULT_GAS_URL = import.meta.env.VITE_GAS_URL || '';
+
+export const getApiUrl = () => localStorage.getItem(GAS_URL_KEY) || DEFAULT_GAS_URL;
 export const setApiUrl = (url: string) => localStorage.setItem(GAS_URL_KEY, url);
+export const hasDefaultUrl = () => !!DEFAULT_GAS_URL;
 
 export interface EmailData {
     to: string;
     subject: string;
     body: string;
+}
+
+export interface LoginResult {
+    success: boolean;
+    user?: { email: string; name: string; role: string };
+    error?: string;
 }
 
 // 通用的請求函式
@@ -17,7 +27,6 @@ export const callGasApi = async (payload: any) => {
         throw new Error('API URL 未設定');
     }
 
-    // Google Apps Script Web App 對於 POST 請求需要使用 'text/plain' 才能避免 CORS 預檢請求失敗
     const response = await fetch(url, {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -28,6 +37,33 @@ export const callGasApi = async (payload: any) => {
 
     const json = await response.json();
     return json;
+};
+
+// 帳密登入
+export const login = async (username: string, password: string): Promise<LoginResult> => {
+    try {
+        const result = await callGasApi({
+            action: 'login',
+            username,
+            password
+        });
+        return result;
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+};
+
+// Google 登入
+export const googleLogin = async (credential: string): Promise<LoginResult> => {
+    try {
+        const result = await callGasApi({
+            action: 'googleLogin',
+            credential
+        });
+        return result;
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
 };
 
 export const sendEmailViaGas = async (data: EmailData): Promise<boolean> => {

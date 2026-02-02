@@ -38,6 +38,9 @@ jobs:
         run: npm install
 
       - name: 建置網站 (Build)
+        env:
+          VITE_GAS_URL: ${{ secrets.GAS_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: npm run build
 
       - name: 上傳建置檔案
