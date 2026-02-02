@@ -31,10 +31,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: 'npm'
+          # 移除 cache: 'npm' 因為儲存庫中沒有 package-lock.json
 
       - name: 安裝依賴
-        run: npm ci
+        # 使用 npm install 確保沒有 lock file 也能安裝
+        run: npm install
 
       - name: 建置網站 (Build)
         run: npm run build
