@@ -20,7 +20,7 @@ function handleRequest(e) {
 
     // === 自動初始化功能 ===
     initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail', 'hostTeam']);
-    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount']);
+    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount', 'documentUrl']);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
 
     // 建立預設管理員帳號
@@ -85,9 +85,20 @@ function handleRequest(e) {
       // ========== 簽辦生成 ==========
       else if (data.action === 'generateDocument') {
         try {
-          // 範本文件 ID 和目標資料夾 ID
-          var templateId = '1pp22zIYi5DQxGzkEObN3MHnuZPO8a2tP';
+          // 範本文件 ID (Google Docs 格式) 和目標資料夾 ID
+          var templateId = '1jClhcGQCH4iEeaTNbpSobzkhrlzOEkwMNicwPnc7ikk';
           var targetFolderId = '18rHdPCxrwnk7-l0k1ga1BigMBbEiZ3TA';
+
+          // 日期轉換為民國年格式 (例: 2026-02-05 → 115年2月5日)
+          function toROCDate(dateStr) {
+            if (!dateStr) return '';
+            var parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            var year = parseInt(parts[0]) - 1911;
+            var month = parseInt(parts[1]);
+            var day = parseInt(parts[2]);
+            return year + '年' + month + '月' + day + '日';
+          }
 
           // 複製範本
           var templateFile = DriveApp.getFileById(templateId);
@@ -95,13 +106,15 @@ function handleRequest(e) {
           var fileName = '簽辦_' + data.projectName + '_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
           var copiedFile = templateFile.makeCopy(fileName, targetFolder);
 
+          Logger.log('✅ 範本已複製: ' + copiedFile.getId());
+
           // 開啟複製的文件並替換內容
           var doc = DocumentApp.openById(copiedFile.getId());
           var body = doc.getBody();
 
-          // 替換佔位符
+          // 替換佔位符（日期使用民國年格式）
           body.replaceText('【工程名稱】', data.projectName || '');
-          body.replaceText('【講習截止日期】', data.lectureDeadline || '');
+          body.replaceText('【講習截止日期】', toROCDate(data.lectureDeadline));
           body.replaceText('【承攬商名稱】', data.contractorName || '');
           body.replaceText('【主辦工作隊】', data.hostTeam || '');
 
@@ -110,8 +123,29 @@ function handleRequest(e) {
           // 設定分享權限
           copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
+          var documentUrl = copiedFile.getUrl();
+
+          // 儲存 documentUrl 到對應的違規紀錄
+          if (data.violationId) {
+            var violationsSheet = ss.getSheetByName('Violations');
+            if (violationsSheet) {
+              var violationsData = violationsSheet.getDataRange().getValues();
+              var headers = violationsData[0];
+              var idCol = headers.indexOf('id');
+              var docUrlCol = headers.indexOf('documentUrl');
+
+              for (var i = 1; i < violationsData.length; i++) {
+                if (violationsData[i][idCol] === data.violationId) {
+                  violationsSheet.getRange(i + 1, docUrlCol + 1).setValue(documentUrl);
+                  Logger.log('✅ documentUrl 已儲存至違規紀錄: ' + data.violationId);
+                  break;
+                }
+              }
+            }
+          }
+
           output.success = true;
-          output.documentUrl = copiedFile.getUrl();
+          output.documentUrl = documentUrl;
           output.documentName = fileName;
 
           Logger.log('✅ 簽辦已生成: ' + output.documentUrl);
@@ -427,4 +461,11 @@ function checkDueDates() {
       }
     }
   });
+}
+
+// ========== 強制重新授權函數 (執行後請刪除) ==========
+function forceReauthorization() {
+  var doc = DocumentApp.create('Test Document');
+  DriveApp.getFileById(doc.getId()).setTrashed(true);
+  Logger.log('授權成功！');
 }

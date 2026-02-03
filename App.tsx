@@ -201,6 +201,12 @@ function App() {
 
     // 簽辦生成處理
     const handleGenerateDocument = async (violation: Violation) => {
+        // 如果已有簽辦，直接開啟
+        if (violation.documentUrl) {
+            window.open(violation.documentUrl, '_blank');
+            return;
+        }
+
         setIsLoading(true);
         try {
             // 取得工程資訊
@@ -210,6 +216,7 @@ function App() {
                 method: 'POST',
                 body: JSON.stringify({
                     action: 'generateDocument',
+                    violationId: violation.id, // 傳遞 ID 以儲存 URL
                     projectName: violation.projectName,
                     contractorName: violation.contractorName,
                     lectureDeadline: violation.lectureDeadline,
@@ -220,6 +227,12 @@ function App() {
             const result = await response.json();
 
             if (result.success && result.documentUrl) {
+                // 更新本地 violations 狀態
+                setViolations(prev => prev.map(v =>
+                    v.id === violation.id
+                        ? { ...v, documentUrl: result.documentUrl }
+                        : v
+                ));
                 window.open(result.documentUrl, '_blank');
                 alert('簽辦已生成！');
             } else {
@@ -460,8 +473,11 @@ function App() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleGenerateDocument(violation)}
-                                                    className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                                    title="生成簽辦"
+                                                    className={`p-1.5 rounded-lg transition-all ${violation.documentUrl
+                                                            ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                                            : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                                                        }`}
+                                                    title={violation.documentUrl ? '下載簽辦' : '生成簽辦'}
                                                 >
                                                     <FileText size={18} />
                                                 </button>

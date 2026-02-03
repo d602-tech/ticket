@@ -14,6 +14,7 @@ export interface Violation {
   fileUrl?: string; // Google Drive 檔案連結
   status: ViolationStatus;
   emailCount?: number; // 已寄信次數
+  documentUrl?: string; // 簽辦文件連結
 }
 
 export interface Project {
