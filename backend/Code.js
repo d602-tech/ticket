@@ -19,9 +19,21 @@ function handleRequest(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // === 自動初始化功能 ===
-    initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail', 'hostTeam']);
-    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount', 'documentUrl', 'scanFileName', 'scanFileUrl']);
+    initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail', 'hostTeam', 'managerName', 'managerEmail']);
+    initSheet(ss, 'Violations', [
+      'id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline',
+      'description', 'status', 'fileName', 'fileUrl', 'emailCount', 'documentUrl',
+      'scanFileName', 'scanFileUrl',
+      // 新增欄位：通知追蹤
+      'firstNotifyDate', 'secondNotifyDate', 'notifyStatus', 'managerEmail',
+      // 掃描檔修改歷史
+      'scanFileHistory'
+    ]);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
+    // 通知紀錄表
+    initSheet(ss, 'NotificationLogs', [
+      'id', 'violationId', 'notificationType', 'recipientEmail', 'recipientRole', 'sentAt', 'status'
+    ]);
 
     // 建立預設管理員帳號
     initDefaultAdmin(ss);
@@ -180,6 +192,7 @@ function handleRequest(e) {
           var fileData = data.fileData;
           var fileName = data.fileName || '掃描檔_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
           var mimeType = data.mimeType || 'application/pdf';
+          var replaceReason = data.replaceReason || null; // 修改原因
 
           var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
           var uploadedFile = scanFolder.createFile(blob);
@@ -196,9 +209,32 @@ function handleRequest(e) {
               var idCol = headers.indexOf('id');
               var scanFileNameCol = headers.indexOf('scanFileName');
               var scanFileUrlCol = headers.indexOf('scanFileUrl');
+              var scanFileHistoryCol = headers.indexOf('scanFileHistory');
 
               for (var i = 1; i < violationsData.length; i++) {
                 if (violationsData[i][idCol] === data.violationId) {
+                  var oldScanFileUrl = violationsData[i][scanFileUrlCol];
+                  var oldScanFileName = violationsData[i][scanFileNameCol];
+
+                  // 如果是重新上傳（有舊檔案），記錄歷史
+                  if (oldScanFileUrl && replaceReason) {
+                    var historyJson = violationsData[i][scanFileHistoryCol] || '[]';
+                    var history = [];
+                    try { history = JSON.parse(historyJson); } catch (e) { history = []; }
+
+                    history.push({
+                      date: Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm'),
+                      reason: replaceReason,
+                      oldFileName: oldScanFileName,
+                      oldUrl: oldScanFileUrl,
+                      newFileName: fileName,
+                      newUrl: scanFileUrl
+                    });
+
+                    violationsSheet.getRange(i + 1, scanFileHistoryCol + 1).setValue(JSON.stringify(history));
+                    Logger.log('📝 掃描檔修改歷史已記錄: ' + replaceReason);
+                  }
+
                   violationsSheet.getRange(i + 1, scanFileNameCol + 1).setValue(fileName);
                   violationsSheet.getRange(i + 1, scanFileUrlCol + 1).setValue(scanFileUrl);
                   Logger.log('✅ 掃描檔已儲存至違規紀錄: ' + data.violationId);
@@ -211,6 +247,7 @@ function handleRequest(e) {
           output.success = true;
           output.scanFileUrl = scanFileUrl;
           output.scanFileName = fileName;
+          output.wasReplaced = !!replaceReason;
           Logger.log('✅ 掃描檔已上傳: ' + scanFileUrl);
         } catch (e) {
           Logger.log('❌ 掃描檔上傳失敗: ' + e.message);
@@ -531,4 +568,179 @@ function forceReauthorization() {
   var doc = DocumentApp.create('Test Document');
   DriveApp.getFileById(doc.getId()).setTrashed(true);
   Logger.log('授權成功！');
+}
+
+// ========== Sheet 備份功能 ==========
+function backupSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd_HHmmss');
+  var backupName = ss.getName() + '_備份_' + timestamp;
+
+  // 複製整個試算表
+  var backupFile = DriveApp.getFileById(ss.getId()).makeCopy(backupName);
+
+  Logger.log('✅ 備份完成: ' + backupFile.getUrl());
+  return {
+    success: true,
+    backupName: backupName,
+    backupUrl: backupFile.getUrl()
+  };
+}
+
+// ========== 每日自動通知功能 ==========
+// 請在 GAS 編輯器中設定觸發器：每日平日 10:00 執行
+function sendDailyNotifications() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var violations = loadData(ss, 'Violations');
+  var projects = loadData(ss, 'Projects');
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var notificationCount = { first: 0, second: 0, overdue: 0 };
+
+  violations.forEach(function (v) {
+    if (v.status === 'COMPLETED') return;
+
+    var deadline = new Date(v.lectureDeadline);
+    deadline.setHours(0, 0, 0, 0);
+    var daysRemaining = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+
+    var project = projects.find(function (p) { return p.name === v.projectName; });
+    var coordinatorEmail = project ? project.coordinatorEmail : null;
+
+    // 5日內首次通知（未發送過第一次通知）
+    if (daysRemaining <= 5 && daysRemaining > 2 && !v.firstNotifyDate) {
+      if (coordinatorEmail && !hasNotifiedToday(ss, v.id, 'first')) {
+        sendNotificationEmail(ss, v, project, 'first', daysRemaining);
+        updateViolationNotifyDate(ss, v.id, 'firstNotifyDate');
+        notificationCount.first++;
+      }
+    }
+
+    // 2日內二次通知（未發送過第二次通知）
+    if (daysRemaining <= 2 && daysRemaining >= 0 && !v.secondNotifyDate) {
+      if (coordinatorEmail && !hasNotifiedToday(ss, v.id, 'second')) {
+        sendNotificationEmail(ss, v, project, 'second', daysRemaining);
+        updateViolationNotifyDate(ss, v.id, 'secondNotifyDate');
+        notificationCount.second++;
+      }
+    }
+
+    // 已逾期通知
+    if (daysRemaining < 0) {
+      if (coordinatorEmail && !hasNotifiedToday(ss, v.id, 'overdue')) {
+        sendNotificationEmail(ss, v, project, 'overdue', daysRemaining);
+        notificationCount.overdue++;
+      }
+    }
+  });
+
+  Logger.log('📧 通知發送完成: 首次=' + notificationCount.first +
+    ', 二次=' + notificationCount.second +
+    ', 逾期=' + notificationCount.overdue);
+}
+
+// 發送通知 Email（HTML 格式）
+function sendNotificationEmail(ss, violation, project, notificationType, daysRemaining) {
+  var recipientEmail = project ? project.coordinatorEmail : null;
+  if (!recipientEmail) return;
+
+  var subject = getNotificationSubject(notificationType, violation);
+  var htmlBody = generateHtmlEmail(notificationType, violation, project, daysRemaining);
+
+  try {
+    MailApp.sendEmail({
+      to: recipientEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+
+    // 記錄通知日誌
+    logNotification(ss, violation.id, notificationType, recipientEmail, 'coordinator', 'success');
+    Logger.log('✅ 已發送 ' + notificationType + ' 通知給 ' + recipientEmail);
+  } catch (e) {
+    logNotification(ss, violation.id, notificationType, recipientEmail, 'coordinator', 'failed');
+    Logger.log('❌ 發送失敗: ' + e.message);
+  }
+}
+
+// 通知主旨
+function getNotificationSubject(type, violation) {
+  var prefix = {
+    'first': '【提醒】',
+    'second': '【緊急】',
+    'overdue': '【逾期警告】'
+  };
+  return (prefix[type] || '【通知】') + '違規講習待辦理 - ' + violation.contractorName;
+}
+
+// HTML Email 模板
+function generateHtmlEmail(type, violation, project, daysRemaining) {
+  var urgencyColor = daysRemaining < 0 ? '#EF4444' :
+    daysRemaining <= 2 ? '#F97316' : '#EAB308';
+  var statusText = daysRemaining < 0 ? '已逾期 ' + Math.abs(daysRemaining) + ' 天' :
+    '剩餘 ' + daysRemaining + ' 天';
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8f9fa;">' +
+    '<table width="600" cellpadding="0" cellspacing="0" style="margin:20px auto;font-family:Arial,sans-serif;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
+    '<tr><td style="background:' + urgencyColor + ';color:white;padding:24px;text-align:center;">' +
+    '<h1 style="margin:0;font-size:20px;">⚠️ 違規講習通知</h1></td></tr>' +
+    '<tr><td style="padding:30px;background:white;">' +
+    '<table width="100%" style="border-collapse:collapse;">' +
+    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>工程名稱：</strong></td>' +
+    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + (project ? project.name : violation.projectName) + '</td></tr>' +
+    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>承攬商：</strong></td>' +
+    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + violation.contractorName + '</td></tr>' +
+    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>違規內容：</strong></td>' +
+    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + (violation.description || '-') + '</td></tr>' +
+    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>講習期限：</strong></td>' +
+    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + violation.lectureDeadline + '</td></tr>' +
+    '</table>' +
+    '<div style="text-align:center;margin:24px 0;padding:20px;background:' + urgencyColor + '20;border-radius:8px;">' +
+    '<span style="font-size:28px;font-weight:bold;color:' + urgencyColor + ';">' + statusText + '</span></div>' +
+    '<p style="color:#666;font-size:14px;margin-top:20px;">請儘速協助督促承攬商完成安全講習，以符合工安規範。</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:16px;text-align:center;color:#999;font-size:12px;background:#f8f9fa;">' +
+    '工安組 自動通知系統</td></tr></table></body></html>';
+}
+
+// 防重複通知：檢查今天是否已發送過
+function hasNotifiedToday(ss, violationId, notificationType) {
+  var logs = loadData(ss, 'NotificationLogs');
+  var today = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd');
+
+  return logs.some(function (log) {
+    return log.violationId === violationId &&
+      log.notificationType === notificationType &&
+      log.sentAt && log.sentAt.toString().startsWith(today);
+  });
+}
+
+// 記錄通知日誌
+function logNotification(ss, violationId, notificationType, recipientEmail, recipientRole, status) {
+  var sheet = ss.getSheetByName('NotificationLogs');
+  var id = Utilities.getUuid();
+  var sentAt = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+
+  sheet.appendRow([id, violationId, notificationType, recipientEmail, recipientRole, sentAt, status]);
+}
+
+// 更新違規紀錄的通知日期
+function updateViolationNotifyDate(ss, violationId, dateField) {
+  var sheet = ss.getSheetByName('Violations');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('id');
+  var dateCol = headers.indexOf(dateField);
+
+  if (dateCol === -1) return;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === violationId) {
+      var today = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd');
+      sheet.getRange(i + 1, dateCol + 1).setValue(today);
+      break;
+    }
+  }
 }

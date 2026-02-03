@@ -17,6 +17,13 @@ export interface Violation {
   documentUrl?: string; // 簽辦文件連結
   scanFileName?: string; // 簽辦掃描檔名稱
   scanFileUrl?: string; // 簽辦掃描檔連結
+  // 通知追蹤欄位
+  firstNotifyDate?: string;
+  secondNotifyDate?: string;
+  notifyStatus?: 'none' | 'first' | 'second' | 'overdue';
+  managerEmail?: string;
+  // 掃描檔修改歷史（JSON 字串）
+  scanFileHistory?: string; // [{date, reason, oldUrl, newUrl}]
 }
 
 export interface Project {
@@ -28,6 +35,9 @@ export interface Project {
   coordinatorName: string;
   coordinatorEmail: string;
   hostTeam?: string; // 主辦工作隊
+  // 主管相關欄位
+  managerName?: string;    // 部門主管姓名
+  managerEmail?: string;   // 部門主管 Email
 }
 
 export interface User {

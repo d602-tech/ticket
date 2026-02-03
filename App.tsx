@@ -54,12 +54,15 @@ function App() {
         coordinatorName: '',
         coordinatorEmail: '',
         contractor: '',
-        hostTeam: ''
+        hostTeam: '',
+        managerName: '',
+        managerEmail: ''
     });
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | ViolationStatus>('ALL');
+    const [hostTeamFilter, setHostTeamFilter] = useState<string>('ALL');
 
     const loadData = async () => {
         const url = getApiUrl();
@@ -177,7 +180,9 @@ function App() {
             coordinatorName: editingProject.coordinatorName!,
             coordinatorEmail: editingProject.coordinatorEmail || '',
             contractor: editingProject.contractor!,
-            hostTeam: editingProject.hostTeam || ''
+            hostTeam: editingProject.hostTeam || '',
+            managerName: editingProject.managerName || '',
+            managerEmail: editingProject.managerEmail || ''
         };
 
         let updatedProjects;
@@ -192,7 +197,7 @@ function App() {
             const response = await syncData(updatedProjects, undefined);
             setProjects(response.projects);
             setProjectFormOpen(false);
-            setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '', hostTeam: '' });
+            setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '', hostTeam: '', managerName: '', managerEmail: '' });
         } catch (e) {
             alert('儲存工程失敗');
         } finally {
@@ -248,7 +253,17 @@ function App() {
     };
 
     // 掃描檔上傳處理
-    const handleUploadScanFile = async (violation: Violation) => {
+    const handleUploadScanFile = async (violation: Violation, isReplace: boolean = false) => {
+        // 如果是重新上傳，先要求輸入原因
+        let replaceReason: string | null = null;
+        if (isReplace && violation.scanFileUrl) {
+            replaceReason = prompt('請輸入修改掃描檔的原因：');
+            if (!replaceReason || replaceReason.trim() === '') {
+                alert('必須填寫修改原因才能替換掃描檔');
+                return;
+            }
+        }
+
         // 建立隱藏的 file input
         const input = document.createElement('input');
         input.type = 'file';
@@ -272,7 +287,8 @@ function App() {
                             violationId: violation.id,
                             fileData: base64,
                             fileName: file.name,
-                            mimeType: file.type
+                            mimeType: file.type,
+                            replaceReason: replaceReason // 傳遞修改原因
                         })
                     });
 
@@ -285,7 +301,7 @@ function App() {
                                 ? { ...v, scanFileName: result.scanFileName, scanFileUrl: result.scanFileUrl }
                                 : v
                         ));
-                        alert('掃描檔已上傳！');
+                        alert(result.wasReplaced ? '掃描檔已替換！（已記錄修改歷史）' : '掃描檔已上傳！');
                     } else {
                         alert('上傳失敗: ' + (result.error || '未知錯誤'));
                     }
@@ -324,16 +340,28 @@ function App() {
     };
 
     // Derived State
+    // 取得所有主辦部門（去重）
+    const hostTeams = [...new Set(projects.map(p => p.hostTeam).filter(Boolean))];
+
     const filteredViolations = violations.filter(v => {
         const matchesSearch = v.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             v.projectName.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || v.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        // 主辦部門篩選
+        const project = projects.find(p => p.name === v.projectName);
+        const matchesHostTeam = hostTeamFilter === 'ALL' || (project?.hostTeam === hostTeamFilter);
+        return matchesSearch && matchesStatus && matchesHostTeam;
     });
 
     const pendingCount = violations.filter(v => v.status === ViolationStatus.PENDING).length;
     const overdueCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) < 0).length;
     const urgentCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) <= 5 && getDaysRemaining(v.lectureDeadline) >= 0).length;
+    // 新增：2日內到期
+    const within2DaysCount = violations.filter(v =>
+        v.status === ViolationStatus.PENDING &&
+        getDaysRemaining(v.lectureDeadline) <= 2 &&
+        getDaysRemaining(v.lectureDeadline) >= 0
+    ).length;
 
     const renderDashboard = () => {
         // 找出到期前5日且未完成的違規
@@ -345,7 +373,7 @@ function App() {
 
         return (
             <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                     <StatCard
                         title="待辦理違規"
                         value={pendingCount}
@@ -353,10 +381,16 @@ function App() {
                         colorClass="bg-orange-500"
                     />
                     <StatCard
-                        title="即將到期 (5天內)"
+                        title="5天內到期"
                         value={urgentCount}
                         icon={Clock}
                         colorClass="bg-yellow-500"
+                    />
+                    <StatCard
+                        title="2天內到期"
+                        value={within2DaysCount}
+                        icon={AlertTriangle}
+                        colorClass="bg-orange-600"
                     />
                     <StatCard
                         title="已逾期案件"
@@ -428,6 +462,20 @@ function App() {
                             <option value="ALL">所有狀態</option>
                             <option value={ViolationStatus.PENDING}>待辦理</option>
                             <option value={ViolationStatus.COMPLETED}>已完成</option>
+                        </select>
+                    </div>
+                    {/* 主辦部門篩選 */}
+                    <div className="relative">
+                        <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <select
+                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                            value={hostTeamFilter}
+                            onChange={(e) => setHostTeamFilter(e.target.value)}
+                        >
+                            <option value="ALL">所有部門</option>
+                            {hostTeams.map(team => (
+                                <option key={team} value={team}>{team}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -538,12 +586,18 @@ function App() {
                                                     <FileText size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : handleUploadScanFile(violation)}
+                                                    onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : handleUploadScanFile(violation, false)}
+                                                    onContextMenu={(e) => {
+                                                        e.preventDefault();
+                                                        if (violation.scanFileUrl) {
+                                                            handleUploadScanFile(violation, true);
+                                                        }
+                                                    }}
                                                     className={`p-1.5 rounded-lg transition-all ${violation.scanFileUrl
-                                                            ? 'text-purple-600 bg-purple-50 hover:bg-purple-100'
-                                                            : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
+                                                        ? 'text-purple-600 bg-purple-50 hover:bg-purple-100'
+                                                        : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
                                                         }`}
-                                                    title={violation.scanFileUrl ? `下載掃描檔 (${violation.scanFileName})` : '上傳簽辦掃描檔'}
+                                                    title={violation.scanFileUrl ? `${violation.scanFileName}（右鍵：替換檔案）` : '上傳簽辦掃描檔'}
                                                 >
                                                     <Upload size={18} />
                                                 </button>
@@ -719,6 +773,29 @@ function App() {
                                     onChange={e => setEditingProject({ ...editingProject, hostTeam: e.target.value })}
                                     placeholder="例：建築工作隊"
                                 />
+                            </div>
+                            {/* 主管欄位 */}
+                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 mt-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">部門主管姓名</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        value={editingProject.managerName || ''}
+                                        onChange={e => setEditingProject({ ...editingProject, managerName: e.target.value })}
+                                        placeholder="主管姓名"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">部門主管 Email</label>
+                                    <input
+                                        type="email"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        value={editingProject.managerEmail || ''}
+                                        onChange={e => setEditingProject({ ...editingProject, managerEmail: e.target.value })}
+                                        placeholder="主管信箱"
+                                    />
+                                </div>
                             </div>
                             <div className="pt-4 flex justify-end gap-3">
                                 <button
