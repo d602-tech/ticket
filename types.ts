@@ -15,6 +15,8 @@ export interface Violation {
   status: ViolationStatus;
   emailCount?: number; // 已寄信次數
   documentUrl?: string; // 簽辦文件連結
+  scanFileName?: string; // 簽辦掃描檔名稱
+  scanFileUrl?: string; // 簽辦掃描檔連結
 }
 
 export interface Project {

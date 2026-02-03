@@ -56,7 +56,8 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ isOpen, onClose, coo
             subject: subject,
             body: body,
             ccEmail: currentUserEmail, // 副本寄給登入者
-            violationId: violation.id // 用於更新寄信次數
+            violationId: violation.id, // 用於更新寄信次數
+            scanFileUrl: violation.scanFileUrl // 附加掃描檔
         });
 
         setIsSending(false);

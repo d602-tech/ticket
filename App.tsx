@@ -20,7 +20,8 @@ import {
     Loader2,
     Database,
     ExternalLink,
-    FileText
+    FileText,
+    Upload
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -244,6 +245,61 @@ function App() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // 掃描檔上傳處理
+    const handleUploadScanFile = async (violation: Violation) => {
+        // 建立隱藏的 file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+
+            setIsLoading(true);
+            try {
+                // 轉換為 base64
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    const base64 = (reader.result as string).split(',')[1];
+
+                    const response = await fetch(getApiUrl()!, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'uploadScanFile',
+                            violationId: violation.id,
+                            fileData: base64,
+                            fileName: file.name,
+                            mimeType: file.type
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // 更新本地狀態
+                        setViolations(prev => prev.map(v =>
+                            v.id === violation.id
+                                ? { ...v, scanFileName: result.scanFileName, scanFileUrl: result.scanFileUrl }
+                                : v
+                        ));
+                        alert('掃描檔已上傳！');
+                    } else {
+                        alert('上傳失敗: ' + (result.error || '未知錯誤'));
+                    }
+                    setIsLoading(false);
+                };
+                reader.readAsDataURL(file);
+            } catch (e) {
+                console.error(e);
+                alert('上傳失敗：' + (e as Error).message);
+                setIsLoading(false);
+            }
+        };
+
+        input.click();
     };
 
     const handleEditProject = (project: Project) => {
@@ -474,12 +530,22 @@ function App() {
                                                 <button
                                                     onClick={() => handleGenerateDocument(violation)}
                                                     className={`p-1.5 rounded-lg transition-all ${violation.documentUrl
-                                                            ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                                                            : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                                                        ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                                        : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                         }`}
                                                     title={violation.documentUrl ? '下載簽辦' : '生成簽辦'}
                                                 >
                                                     <FileText size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : handleUploadScanFile(violation)}
+                                                    className={`p-1.5 rounded-lg transition-all ${violation.scanFileUrl
+                                                            ? 'text-purple-600 bg-purple-50 hover:bg-purple-100'
+                                                            : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
+                                                        }`}
+                                                    title={violation.scanFileUrl ? `下載掃描檔 (${violation.scanFileName})` : '上傳簽辦掃描檔'}
+                                                >
+                                                    <Upload size={18} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteViolation(violation.id)}

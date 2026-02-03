@@ -20,7 +20,7 @@ function handleRequest(e) {
 
     // === 自動初始化功能 ===
     initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail', 'hostTeam']);
-    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount', 'documentUrl']);
+    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount', 'documentUrl', 'scanFileName', 'scanFileUrl']);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
 
     // 建立預設管理員帳號
@@ -56,6 +56,21 @@ function handleRequest(e) {
         // 如果有提供登入者信箱，加入副本
         if (data.ccEmail) {
           emailOptions.cc = data.ccEmail;
+        }
+
+        // 如果有掃描檔，加入附件
+        if (data.scanFileUrl) {
+          try {
+            // 從 URL 取得檔案 ID
+            var fileIdMatch = data.scanFileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (fileIdMatch && fileIdMatch[1]) {
+              var scanFile = DriveApp.getFileById(fileIdMatch[1]);
+              emailOptions.attachments = [scanFile.getBlob()];
+              Logger.log('✅ 已加入附件: ' + scanFile.getName());
+            }
+          } catch (e) {
+            Logger.log('⚠️ 無法加入附件: ' + e.message);
+          }
         }
 
         MailApp.sendEmail(emailOptions);
@@ -151,6 +166,54 @@ function handleRequest(e) {
           Logger.log('✅ 簽辦已生成: ' + output.documentUrl);
         } catch (e) {
           Logger.log('❌ 簽辦生成失敗: ' + e.message);
+          output.success = false;
+          output.error = e.message;
+        }
+      }
+      // ========== 上傳簽辦掃描檔 ==========
+      else if (data.action === 'uploadScanFile') {
+        try {
+          var scanFolderId = '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF';
+          var scanFolder = DriveApp.getFolderById(scanFolderId);
+
+          // 解碼 base64 檔案
+          var fileData = data.fileData;
+          var fileName = data.fileName || '掃描檔_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+          var mimeType = data.mimeType || 'application/pdf';
+
+          var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
+          var uploadedFile = scanFolder.createFile(blob);
+          uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+          var scanFileUrl = uploadedFile.getUrl();
+
+          // 儲存到對應的違規紀錄
+          if (data.violationId) {
+            var violationsSheet = ss.getSheetByName('Violations');
+            if (violationsSheet) {
+              var violationsData = violationsSheet.getDataRange().getValues();
+              var headers = violationsData[0];
+              var idCol = headers.indexOf('id');
+              var scanFileNameCol = headers.indexOf('scanFileName');
+              var scanFileUrlCol = headers.indexOf('scanFileUrl');
+
+              for (var i = 1; i < violationsData.length; i++) {
+                if (violationsData[i][idCol] === data.violationId) {
+                  violationsSheet.getRange(i + 1, scanFileNameCol + 1).setValue(fileName);
+                  violationsSheet.getRange(i + 1, scanFileUrlCol + 1).setValue(scanFileUrl);
+                  Logger.log('✅ 掃描檔已儲存至違規紀錄: ' + data.violationId);
+                  break;
+                }
+              }
+            }
+          }
+
+          output.success = true;
+          output.scanFileUrl = scanFileUrl;
+          output.scanFileName = fileName;
+          Logger.log('✅ 掃描檔已上傳: ' + scanFileUrl);
+        } catch (e) {
+          Logger.log('❌ 掃描檔上傳失敗: ' + e.message);
           output.success = false;
           output.error = e.message;
         }

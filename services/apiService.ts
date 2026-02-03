@@ -15,6 +15,7 @@ export interface EmailData {
     body: string;
     ccEmail?: string; // 副本寄給登入者
     violationId?: string; // 用於更新寄信次數
+    scanFileUrl?: string; // 掃描檔附件
 }
 
 export interface LoginResult {
