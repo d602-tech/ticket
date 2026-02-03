@@ -70,6 +70,13 @@ function handleRequest(e) {
             file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
             uploadedFileUrl = file.getUrl();
 
+            // 回報上傳成功
+            output.fileUploadStatus = {
+              success: true,
+              fileName: data.fileUpload.fileData.name,
+              fileUrl: uploadedFileUrl
+            };
+
             if (data.violations) {
               data.violations = data.violations.map(function (v) {
                 if (v.id === data.fileUpload.violationId) {
@@ -79,7 +86,10 @@ function handleRequest(e) {
               });
             }
           } catch (err) {
-            output.fileError = err.toString();
+            output.fileUploadStatus = {
+              success: false,
+              error: err.toString()
+            };
           }
         }
 
