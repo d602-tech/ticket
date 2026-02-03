@@ -19,8 +19,8 @@ function handleRequest(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // === 自動初始化功能 ===
-    initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail']);
-    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl']);
+    initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail', 'hostTeam']);
+    initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl', 'emailCount']);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
 
     // 建立預設管理員帳號
@@ -46,13 +46,80 @@ function handleRequest(e) {
 
       // ========== 寄送 Email ==========
       if (data.action === 'sendEmail') {
-        MailApp.sendEmail({
+        // 寄送郵件，加入副本給登入者
+        var emailOptions = {
           to: data.to,
           subject: data.subject,
           body: data.body
-        });
+        };
+
+        // 如果有提供登入者信箱，加入副本
+        if (data.ccEmail) {
+          emailOptions.cc = data.ccEmail;
+        }
+
+        MailApp.sendEmail(emailOptions);
+
+        // 更新違規紀錄的寄信次數
+        if (data.violationId) {
+          var violationsSheet = ss.getSheetByName('Violations');
+          if (violationsSheet) {
+            var violationsData = violationsSheet.getDataRange().getValues();
+            var headers = violationsData[0];
+            var idCol = headers.indexOf('id');
+            var emailCountCol = headers.indexOf('emailCount');
+
+            for (var i = 1; i < violationsData.length; i++) {
+              if (violationsData[i][idCol] === data.violationId) {
+                var currentCount = violationsData[i][emailCountCol] || 0;
+                violationsSheet.getRange(i + 1, emailCountCol + 1).setValue(currentCount + 1);
+                break;
+              }
+            }
+          }
+        }
+
         output.success = true;
         output.message = 'Email sent';
+      }
+      // ========== 簽辦生成 ==========
+      else if (data.action === 'generateDocument') {
+        try {
+          // 範本文件 ID 和目標資料夾 ID
+          var templateId = '1pp22zIYi5DQxGzkEObN3MHnuZPO8a2tP';
+          var targetFolderId = '18rHdPCxrwnk7-l0k1ga1BigMBbEiZ3TA';
+
+          // 複製範本
+          var templateFile = DriveApp.getFileById(templateId);
+          var targetFolder = DriveApp.getFolderById(targetFolderId);
+          var fileName = '簽辦_' + data.projectName + '_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+          var copiedFile = templateFile.makeCopy(fileName, targetFolder);
+
+          // 開啟複製的文件並替換內容
+          var doc = DocumentApp.openById(copiedFile.getId());
+          var body = doc.getBody();
+
+          // 替換佔位符
+          body.replaceText('【工程名稱】', data.projectName || '');
+          body.replaceText('【講習截止日期】', data.lectureDeadline || '');
+          body.replaceText('【承攬商名稱】', data.contractorName || '');
+          body.replaceText('【主辦工作隊】', data.hostTeam || '');
+
+          doc.saveAndClose();
+
+          // 設定分享權限
+          copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+          output.success = true;
+          output.documentUrl = copiedFile.getUrl();
+          output.documentName = fileName;
+
+          Logger.log('✅ 簽辦已生成: ' + output.documentUrl);
+        } catch (e) {
+          Logger.log('❌ 簽辦生成失敗: ' + e.message);
+          output.success = false;
+          output.error = e.message;
+        }
       }
       // ========== 資料同步 ==========
       else if (data.action === 'sync') {

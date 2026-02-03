@@ -11,8 +11,9 @@ export interface Violation {
   lectureDeadline: string; // ISO Date String YYYY-MM-DD
   description: string;
   fileName?: string;
-  fileUrl?: string; // 新增：Google Drive 檔案連結
+  fileUrl?: string; // Google Drive 檔案連結
   status: ViolationStatus;
+  emailCount?: number; // 已寄信次數
 }
 
 export interface Project {
@@ -20,9 +21,10 @@ export interface Project {
   sequence: number;       // 序號
   abbreviation: string;   // 工程簡稱
   name: string;
-  contractor: string; // Changed from string[] to string (One-to-One)
+  contractor: string; // 承攜商名稱
   coordinatorName: string;
   coordinatorEmail: string;
+  hostTeam?: string; // 主辦工作隊
 }
 
 export interface User {

@@ -23,11 +23,31 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
   });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
+  // 拖拉上傳處理
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && (droppedFile.type.startsWith('image/') || droppedFile.type === 'application/pdf')) {
+      setFile(droppedFile);
+    }
+  };
   useEffect(() => {
     if (formData.violationDate) {
-      // Auto calculate deadline: +30 days
-      const deadline = addDays(formData.violationDate, 30);
+      // Auto calculate deadline: +32 days
+      const deadline = addDays(formData.violationDate, 32);
       setFormData((prev) => ({ ...prev, lectureDeadline: deadline }));
     }
   }, [formData.violationDate]);
@@ -175,7 +195,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
 
             {/* Lecture Deadline (Auto) */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">講習截止日期 (+30天)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">講習截止日期 (+32天)</label>
               <input
                 type="date"
                 disabled
@@ -210,21 +230,36 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             />
           </div>
 
-          {/* File Upload */}
+          {/* File Upload with Drag & Drop */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單 (圖片/PDF)</label>
-            <div className="flex items-center justify-center w-full">
-              <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${file ? 'border-indigo-300 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}`}>
+            <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單 (圖片/PDF) - 可拖拉上傳</label>
+            <div
+              className="flex items-center justify-center w-full"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${isDragging
+                  ? 'border-indigo-500 bg-indigo-100 scale-105'
+                  : file
+                    ? 'border-indigo-300 bg-indigo-50'
+                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                }`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   {file ? (
                     <div className="flex items-center gap-2">
                       <FileText className="w-6 h-6 text-indigo-600" />
                       <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{file.name}</p>
                     </div>
+                  ) : isDragging ? (
+                    <>
+                      <Upload className="w-8 h-8 text-indigo-500 mb-1 animate-bounce" />
+                      <p className="text-sm text-indigo-600 font-medium">放開以上傳檔案</p>
+                    </>
                   ) : (
                     <>
                       <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                      <p className="text-xs text-slate-500">點擊上傳</p>
+                      <p className="text-xs text-slate-500">點擊或拖拉檔案至此</p>
                     </>
                   )}
                 </div>

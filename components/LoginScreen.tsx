@@ -115,7 +115,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <ShieldCheck className="w-10 h-10 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">違規講習登入表</h1>
+                    <h1 className="text-2xl font-bold text-white">違規講習登錄表</h1>
                     <p className="text-indigo-200 text-sm mt-1">工安組管理系統</p>
                 </div>
 

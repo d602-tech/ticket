@@ -19,7 +19,8 @@ import {
     X,
     Loader2,
     Database,
-    ExternalLink
+    ExternalLink,
+    FileText
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -33,6 +34,7 @@ import { LoadingModal } from './components/LoadingModal';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [currentUserEmail, setCurrentUserEmail] = useState<string>(''); // 登入者信箱
     const [view, setView] = useState<ViewState>('DASHBOARD');
     const [violations, setViolations] = useState<Violation[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
@@ -50,7 +52,8 @@ function App() {
         name: '',
         coordinatorName: '',
         coordinatorEmail: '',
-        contractor: ''
+        contractor: '',
+        hostTeam: ''
     });
 
     // Filters
@@ -79,12 +82,14 @@ function App() {
         }
     }, [isAuthenticated]);
 
-    const handleLogin = (success: boolean) => {
+    const handleLogin = (success: boolean, user?: { email: string; name: string; role: string }) => {
         setIsAuthenticated(success);
+        if (user?.email) setCurrentUserEmail(user.email);
     };
 
     const handleLogout = () => {
         setIsAuthenticated(false);
+        setCurrentUserEmail('');
         setView('DASHBOARD');
     };
 
@@ -170,7 +175,8 @@ function App() {
             name: editingProject.name!,
             coordinatorName: editingProject.coordinatorName!,
             coordinatorEmail: editingProject.coordinatorEmail || '',
-            contractor: editingProject.contractor!
+            contractor: editingProject.contractor!,
+            hostTeam: editingProject.hostTeam || ''
         };
 
         let updatedProjects;
@@ -185,9 +191,43 @@ function App() {
             const response = await syncData(updatedProjects, undefined);
             setProjects(response.projects);
             setProjectFormOpen(false);
-            setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' });
+            setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '', hostTeam: '' });
         } catch (e) {
             alert('儲存工程失敗');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 簽辦生成處理
+    const handleGenerateDocument = async (violation: Violation) => {
+        setIsLoading(true);
+        try {
+            // 取得工程資訊
+            const project = projects.find(p => p.name === violation.projectName);
+
+            const response = await fetch(getApiUrl()!, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'generateDocument',
+                    projectName: violation.projectName,
+                    contractorName: violation.contractorName,
+                    lectureDeadline: violation.lectureDeadline,
+                    hostTeam: project?.hostTeam || '未指定'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.documentUrl) {
+                window.open(result.documentUrl, '_blank');
+                alert('簽辦已生成！');
+            } else {
+                alert('簽辦生成失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('簽辦生成失敗：' + (e as Error).message);
         } finally {
             setIsLoading(false);
         }
@@ -404,12 +444,26 @@ function App() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                {/* 寄信次數徽章 */}
+                                                {(violation.emailCount || 0) > 0 && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700" title={`已寄信 ${violation.emailCount} 次`}>
+                                                        <Mail size={10} className="mr-1" />
+                                                        {violation.emailCount}
+                                                    </span>
+                                                )}
                                                 <button
                                                     onClick={() => openEmailModal(violation)}
                                                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                                                     title="發送通知信"
                                                 >
                                                     <Mail size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleGenerateDocument(violation)}
+                                                    className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                                    title="生成簽辦"
+                                                >
+                                                    <FileText size={18} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteViolation(violation.id)}
@@ -574,6 +628,16 @@ function App() {
                                     onChange={e => setEditingProject({ ...editingProject, coordinatorEmail: e.target.value })}
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    value={editingProject.hostTeam || ''}
+                                    onChange={e => setEditingProject({ ...editingProject, hostTeam: e.target.value })}
+                                    placeholder="例：建築工作隊"
+                                />
+                            </div>
                             <div className="pt-4 flex justify-end gap-3">
                                 <button
                                     type="button"
@@ -635,7 +699,7 @@ function App() {
                     <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
                         SG
                     </div>
-                    <span className="text-white font-bold text-lg tracking-tight">違規講習登入表</span>
+                    <span className="text-white font-bold text-lg tracking-tight">違規講習登錄表</span>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -729,6 +793,7 @@ function App() {
                 onSend={handleEmailSent}
                 violation={emailState.violation as Violation}
                 coordinator={emailState.violation ? getCoordinatorForProject(emailState.violation.projectName) : undefined}
+                currentUserEmail={currentUserEmail}
             />
 
             {/* Loading Modal - 上傳/同步時顯示 */}

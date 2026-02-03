@@ -9,9 +9,10 @@ interface EmailPreviewProps {
     coordinator?: Coordinator;
     violation: Violation;
     onSend: () => void; // This is now used for post-send cleanup
+    currentUserEmail?: string; // 當前登入者信箱
 }
 
-export const EmailPreview: React.FC<EmailPreviewProps> = ({ isOpen, onClose, coordinator, violation, onSend }) => {
+export const EmailPreview: React.FC<EmailPreviewProps> = ({ isOpen, onClose, coordinator, violation, onSend, currentUserEmail }) => {
     const [isSending, setIsSending] = useState(false);
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
@@ -53,13 +54,15 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ isOpen, onClose, coo
         const success = await sendEmailViaGas({
             to: coordinator.email,
             subject: subject,
-            body: body
+            body: body,
+            ccEmail: currentUserEmail, // 副本寄給登入者
+            violationId: violation.id // 用於更新寄信次數
         });
 
         setIsSending(false);
 
         if (success) {
-            alert(`已發送郵件給 ${coordinator.name}！\n(注意：若為免費版 Gmail，可能會在寄件備份中看到)`);
+            alert(`已發送郵件給 ${coordinator.name}！${currentUserEmail ? `\n(副本已寄至 ${currentUserEmail})` : ''}`);
             onSend(); // 清除狀態
         } else {
             alert('發送失敗，請檢查網路或 Google Script 設定。');
