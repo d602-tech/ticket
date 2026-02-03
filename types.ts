@@ -17,6 +17,8 @@ export interface Violation {
 
 export interface Project {
   id: string;
+  sequence: number;       // 序號
+  abbreviation: string;   // 工程簡稱
   name: string;
   contractor: string; // Changed from string[] to string (One-to-One)
   coordinatorName: string;

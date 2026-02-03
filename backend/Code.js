@@ -19,7 +19,7 @@ function handleRequest(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // === 自動初始化功能 ===
-    initSheet(ss, 'Projects', ['id', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail']);
+    initSheet(ss, 'Projects', ['id', 'sequence', 'abbreviation', 'name', 'contractor', 'coordinatorName', 'coordinatorEmail']);
     initSheet(ss, 'Violations', ['id', 'contractorName', 'projectName', 'violationDate', 'lectureDeadline', 'description', 'status', 'fileName', 'fileUrl']);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
 
@@ -143,7 +143,17 @@ function handleGoogleLogin(ss, credential) {
   try {
     // 解碼 JWT (不驗證簽章，因為我們信任 Google)
     var parts = credential.split('.');
-    var payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
+    if (parts.length !== 3) {
+      return { success: false, error: 'Invalid JWT format' };
+    }
+
+    // URL-safe base64 解碼：替換 - 為 +, _ 為 /, 並補齊 padding
+    var base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64Payload.length % 4 !== 0) {
+      base64Payload += '=';
+    }
+
+    var payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(base64Payload)).getDataAsString());
 
     var googleEmail = payload.email;
     var googleName = payload.name || payload.email;
@@ -165,25 +175,10 @@ function handleGoogleLogin(ss, credential) {
       };
     }
 
-    // 不在白名單中，自動建立一般使用者（可選）
-    // 若要嚴格管控，可以改成回傳錯誤
-    var newUser = {
-      email: googleEmail,
-      password: '', // Google 登入不需密碼
-      name: googleName,
-      role: 'user'
-    };
-
-    users.push(newUser);
-    saveData(ss, 'Users', users);
-
+    // 嚴格白名單制：未授權的 Google 帳號將被拒絕
     return {
-      success: true,
-      user: {
-        email: googleEmail,
-        name: googleName,
-        role: 'user'
-      }
+      success: false,
+      error: '此 Google 帳號 (' + googleEmail + ') 未被授權登入本系統，請聯絡管理員'
     };
 
   } catch (err) {
