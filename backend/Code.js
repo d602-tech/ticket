@@ -60,14 +60,9 @@ function handleRequest(e) {
         var uploadedFileUrl = "";
         if (data.fileUpload && data.fileUpload.fileData) {
           try {
-            var folderName = "SafetyGuard_Uploads";
-            var folders = DriveApp.getFoldersByName(folderName);
-            var folder;
-            if (folders.hasNext()) {
-              folder = folders.next();
-            } else {
-              folder = DriveApp.createFolder(folderName);
-            }
+            // 使用指定的 Google Drive 資料夾
+            var folderId = "1dBe4PF_20gXVMqospMQfWxC76v3PeYtv";
+            var folder = DriveApp.getFolderById(folderId);
 
             var contentType = data.fileUpload.fileData.type;
             var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, data.fileUpload.fileData.name);
