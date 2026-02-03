@@ -675,34 +675,117 @@ function getNotificationSubject(type, violation) {
   return (prefix[type] || '【通知】') + '違規講習待辦理 - ' + violation.contractorName;
 }
 
-// HTML Email 模板
+// HTML Email 模板（專業版）
 function generateHtmlEmail(type, violation, project, daysRemaining) {
-  var urgencyColor = daysRemaining < 0 ? '#EF4444' :
-    daysRemaining <= 2 ? '#F97316' : '#EAB308';
-  var statusText = daysRemaining < 0 ? '已逾期 ' + Math.abs(daysRemaining) + ' 天' :
-    '剩餘 ' + daysRemaining + ' 天';
+  // 依通知類型設定配色和文案
+  var config = {
+    'first': {
+      color: '#EAB308',
+      bgLight: '#FEF9C3',
+      icon: '⏰',
+      title: '違規講習提醒',
+      subtitle: '距離期限尚有時間，請儘早安排'
+    },
+    'second': {
+      color: '#F97316',
+      bgLight: '#FFEDD5',
+      icon: '⚡',
+      title: '緊急提醒',
+      subtitle: '期限即將到來，請立即處理'
+    },
+    'overdue': {
+      color: '#EF4444',
+      bgLight: '#FEE2E2',
+      icon: '🚨',
+      title: '逾期警告',
+      subtitle: '已超過期限，請立即補辦'
+    }
+  };
 
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8f9fa;">' +
-    '<table width="600" cellpadding="0" cellspacing="0" style="margin:20px auto;font-family:Arial,sans-serif;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
-    '<tr><td style="background:' + urgencyColor + ';color:white;padding:24px;text-align:center;">' +
-    '<h1 style="margin:0;font-size:20px;">⚠️ 違規講習通知</h1></td></tr>' +
-    '<tr><td style="padding:30px;background:white;">' +
-    '<table width="100%" style="border-collapse:collapse;">' +
-    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>工程名稱：</strong></td>' +
-    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + (project ? project.name : violation.projectName) + '</td></tr>' +
-    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>承攬商：</strong></td>' +
-    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + violation.contractorName + '</td></tr>' +
-    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>違規內容：</strong></td>' +
-    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + (violation.description || '-') + '</td></tr>' +
-    '<tr><td style="padding:12px 0;border-bottom:1px solid #eee;"><strong>講習期限：</strong></td>' +
-    '<td style="padding:12px 0;border-bottom:1px solid #eee;">' + violation.lectureDeadline + '</td></tr>' +
-    '</table>' +
-    '<div style="text-align:center;margin:24px 0;padding:20px;background:' + urgencyColor + '20;border-radius:8px;">' +
-    '<span style="font-size:28px;font-weight:bold;color:' + urgencyColor + ';">' + statusText + '</span></div>' +
-    '<p style="color:#666;font-size:14px;margin-top:20px;">請儘速協助督促承攬商完成安全講習，以符合工安規範。</p>' +
+  var c = config[type] || config['first'];
+  var statusText = daysRemaining < 0 ? '已逾期 ' + Math.abs(daysRemaining) + ' 天' : '剩餘 ' + daysRemaining + ' 天';
+  var coordinatorName = project ? project.coordinatorName : '承辦人員';
+  var hostTeam = project ? (project.hostTeam || '-') : '-';
+
+  // 日期轉民國年
+  function toROC(dateStr) {
+    if (!dateStr) return '-';
+    var parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return (parseInt(parts[0]) - 1911) + '/' + parseInt(parts[1]) + '/' + parseInt(parts[2]);
+  }
+
+  return '<!DOCTYPE html>' +
+    '<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>' + c.title + '</title></head>' +
+    '<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;">' +
+
+    // 外層容器
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:40px 20px;">' +
+    '<tr><td align="center">' +
+
+    // 主卡片
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">' +
+
+    // Header
+    '<tr><td style="background:linear-gradient(135deg,' + c.color + ' 0%,' + c.color + 'dd 100%);padding:32px 40px;text-align:center;">' +
+    '<div style="font-size:48px;margin-bottom:12px;">' + c.icon + '</div>' +
+    '<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">' + c.title + '</h1>' +
+    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">' + c.subtitle + '</p>' +
     '</td></tr>' +
-    '<tr><td style="padding:16px;text-align:center;color:#999;font-size:12px;background:#f8f9fa;">' +
-    '工安組 自動通知系統</td></tr></table></body></html>';
+
+    // 倒數區塊
+    '<tr><td style="padding:0 40px;">' +
+    '<div style="margin:-24px auto 24px;padding:24px;background:' + c.bgLight + ';border-radius:12px;text-align:center;border:2px solid ' + c.color + ';">' +
+    '<span style="font-size:42px;font-weight:800;color:' + c.color + ';letter-spacing:-1px;">' + statusText + '</span>' +
+    '</div></td></tr>' +
+
+    // 收件人稱呼
+    '<tr><td style="padding:0 40px 24px;">' +
+    '<p style="margin:0;color:#374151;font-size:15px;line-height:1.6;">' +
+    '<strong>' + coordinatorName + '</strong> 您好，<br><br>' +
+    '您負責監督的工程「<strong>' + (project ? project.name : violation.projectName) + '</strong>」有一筆違規紀錄尚未完成講習，詳情如下：' +
+    '</p></td></tr>' +
+
+    // 資訊卡片
+    '<tr><td style="padding:0 40px 32px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;">' +
+
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:100px;color:#6b7280;font-size:13px;">承攬商</span>' +
+    '<span style="color:#111827;font-size:14px;font-weight:600;">' + violation.contractorName + '</span></td></tr>' +
+
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:100px;color:#6b7280;font-size:13px;">違規日期</span>' +
+    '<span style="color:#111827;font-size:14px;">' + toROC(violation.violationDate) + '</span></td></tr>' +
+
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:100px;color:#6b7280;font-size:13px;">講習期限</span>' +
+    '<span style="color:' + c.color + ';font-size:14px;font-weight:700;">' + toROC(violation.lectureDeadline) + '</span></td></tr>' +
+
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:100px;color:#6b7280;font-size:13px;">主辦工作隊</span>' +
+    '<span style="color:#111827;font-size:14px;">' + hostTeam + '</span></td></tr>' +
+
+    '<tr><td style="padding:16px 20px;">' +
+    '<span style="display:inline-block;width:100px;color:#6b7280;font-size:13px;">違規內容</span>' +
+    '<span style="color:#111827;font-size:14px;">' + (violation.description || '-') + '</span></td></tr>' +
+
+    '</table></td></tr>' +
+
+    // 提醒文字
+    '<tr><td style="padding:0 40px 32px;">' +
+    '<p style="margin:0;padding:16px;background:#eff6ff;border-left:4px solid #3b82f6;border-radius:0 8px 8px 0;color:#1e40af;font-size:13px;line-height:1.6;">' +
+    '📋 請協助督促承攬商盡速完成安全講習，避免影響工程進度及違反工安規定。' +
+    '</p></td></tr>' +
+
+    // Footer
+    '<tr><td style="padding:24px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">' +
+    '<p style="margin:0 0 8px;color:#6b7280;font-size:12px;">此信件由系統自動發送，請勿直接回覆</p>' +
+    '<p style="margin:0;color:#9ca3af;font-size:11px;">工安組 違規講習追蹤系統</p>' +
+    '</td></tr>' +
+
+    '</table></td></tr></table></body></html>';
 }
 
 // 防重複通知：檢查今天是否已發送過
