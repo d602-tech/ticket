@@ -64,6 +64,7 @@ function App() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | ViolationStatus>('ALL');
     const [hostTeamFilter, setHostTeamFilter] = useState<string>('ALL');
+    const [projectHostTeamFilter, setProjectHostTeamFilter] = useState<string>('ALL');
 
     const loadData = async () => {
         const url = getApiUrl();
@@ -364,6 +365,24 @@ function App() {
         getDaysRemaining(v.lectureDeadline) >= 0
     ).length;
 
+    // 主辦工作隊顏色對應（六種顏色）
+    const getHostTeamColor = (team: string | undefined) => {
+        const colors: Record<string, { bg: string; text: string; border: string }> = {
+            '土木工作隊': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+            '機械工作隊': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+            '電氣工作隊': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
+            '建築工作隊': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+            '環安工作隊': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+            '綜合工作隊': { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' }
+        };
+        return colors[team || ''] || { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
+    };
+
+    // 工程專案篩選
+    const filteredProjects = projects.filter(p =>
+        projectHostTeamFilter === 'ALL' || p.hostTeam === projectHostTeamFilter
+    );
+
     const renderDashboard = () => {
         // 找出到期前5日且未完成的違規
         const urgentViolations = violations.filter(v =>
@@ -627,7 +646,25 @@ function App() {
 
     const renderProjects = () => (
         <div className="space-y-6">
-            <div className="flex justify-end">
+            {/* 工具列：篩選和新增 */}
+            <div className="flex flex-wrap justify-between items-center gap-4">
+                {/* 主辦工作隊篩選器 */}
+                <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-slate-400" />
+                    <select
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={projectHostTeamFilter}
+                        onChange={(e) => setProjectHostTeamFilter(e.target.value)}
+                    >
+                        <option value="ALL">所有工作隊</option>
+                        {hostTeams.map(team => (
+                            <option key={team} value={team}>{team}</option>
+                        ))}
+                    </select>
+                    <span className="text-sm text-slate-500">
+                        共 {filteredProjects.length} 個工程
+                    </span>
+                </div>
                 <button
                     onClick={() => {
                         setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' });
@@ -641,7 +678,7 @@ function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {projects.map(project => (
+                {filteredProjects.map(project => (
                     <div key={project.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-4">
                             <div className="bg-indigo-50 p-3 rounded-lg">
@@ -673,10 +710,16 @@ function App() {
                             )}
                         </div>
                         <h3 className="font-bold text-lg text-slate-800 mb-1">{project.name}</h3>
-                        <p className="text-sm text-slate-500 mb-4 flex items-center gap-2">
+                        <p className="text-sm text-slate-500 mb-2 flex items-center gap-2">
                             <HardHat size={14} />
                             {project.contractor}
                         </p>
+                        {/* 主辦工作隊標籤 */}
+                        {project.hostTeam && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mb-4 ${getHostTeamColor(project.hostTeam).bg} ${getHostTeamColor(project.hostTeam).text} ${getHostTeamColor(project.hostTeam).border} border`}>
+                                {project.hostTeam}
+                            </span>
+                        )}
 
                         <div className="pt-4 border-t border-slate-100 space-y-2">
                             <div className="flex justify-between text-sm">
