@@ -36,7 +36,12 @@ export const fetchInitialData = async (): Promise<{ projects: Project[], violati
 export const syncData = async (
     projects?: Project[],
     violations?: Violation[],
-    fileUpload?: { violationId: string, fileData: { name: string, type: string, base64: string } }
+    fileUpload?: {
+        violationId: string,
+        fileData: { name: string, type: string, base64: string },
+        projectInfo?: { sequence: number | string, abbreviation: string },
+        violationDate?: string
+    }
 ): Promise<{ projects: Project[], violations: Violation[] }> => {
     try {
         const payload: any = { action: 'sync' };

@@ -77,8 +77,22 @@ function handleRequest(e) {
             var folder = DriveApp.getFolderById(folderId);
             Logger.log("✅ 成功取得資料夾: " + folder.getName());
 
+            // 取得檔案資訊
+            var originalName = data.fileUpload.fileData.name;
             var contentType = data.fileUpload.fileData.type;
-            var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, data.fileUpload.fileData.name);
+            var fileExt = originalName.substring(originalName.lastIndexOf('.'));
+
+            // 建立自訂檔名：序號_工程簡稱_違規日期_原始檔名
+            var customFileName = originalName; // 預設使用原始檔名
+            if (data.fileUpload.projectInfo) {
+              var seq = data.fileUpload.projectInfo.sequence || '00';
+              var abbr = data.fileUpload.projectInfo.abbreviation || '未命名';
+              var vDate = data.fileUpload.violationDate || Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+              customFileName = seq + "_" + abbr + "_" + vDate + fileExt;
+              Logger.log("📝 自訂檔名: " + customFileName);
+            }
+
+            var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, customFileName);
             Logger.log("✅ Blob 建立成功");
 
             var file = folder.createFile(blob);
@@ -91,7 +105,7 @@ function handleRequest(e) {
             // 回報上傳成功
             output.fileUploadStatus = {
               success: true,
-              fileName: data.fileUpload.fileData.name,
+              fileName: customFileName,
               fileUrl: uploadedFileUrl
             };
 

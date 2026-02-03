@@ -29,6 +29,7 @@ import { StatCard } from './components/StatCard';
 import { ViolationModal } from './components/ViolationModal';
 import { EmailPreview } from './components/EmailPreview';
 import { LoginScreen } from './components/LoginScreen';
+import { LoadingModal } from './components/LoadingModal';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -94,10 +95,18 @@ function App() {
             // 樂觀更新 (Optimistic Update)
             setViolations(updatedList);
 
-            // 準備檔案上傳參數
+            // 取得工程資訊以建立檔案名稱
+            const project = projects.find(p => p.name === newViolation.projectName);
+
+            // 準備檔案上傳參數（含工程資訊）
             const uploadPayload = fileData ? {
                 violationId: newViolation.id,
-                fileData: fileData
+                fileData: fileData,
+                projectInfo: project ? {
+                    sequence: project.sequence || 0,
+                    abbreviation: project.abbreviation || ''
+                } : undefined,
+                violationDate: newViolation.violationDate?.replace(/-/g, '')
             } : undefined;
 
             // 同步後端
@@ -217,34 +226,73 @@ function App() {
     const overdueCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) < 0).length;
     const urgentCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) <= 5 && getDaysRemaining(v.lectureDeadline) >= 0).length;
 
-    const renderDashboard = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-                title="待辦理違規"
-                value={pendingCount}
-                icon={AlertTriangle}
-                colorClass="bg-orange-500"
-            />
-            <StatCard
-                title="即將到期 (5天內)"
-                value={urgentCount}
-                icon={Clock}
-                colorClass="bg-yellow-500"
-            />
-            <StatCard
-                title="已逾期案件"
-                value={overdueCount}
-                icon={FileWarning}
-                colorClass="bg-red-500"
-            />
-            <StatCard
-                title="本月已完成"
-                value={violations.filter(v => v.status === ViolationStatus.COMPLETED).length}
-                icon={CheckCircle2}
-                colorClass="bg-green-500"
-            />
-        </div>
-    );
+    const renderDashboard = () => {
+        // 找出到期前5日且未完成的違規
+        const urgentViolations = violations.filter(v =>
+            v.status === ViolationStatus.PENDING &&
+            getDaysRemaining(v.lectureDeadline) <= 5 &&
+            getDaysRemaining(v.lectureDeadline) >= 0
+        );
+
+        return (
+            <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <StatCard
+                        title="待辦理違規"
+                        value={pendingCount}
+                        icon={AlertTriangle}
+                        colorClass="bg-orange-500"
+                    />
+                    <StatCard
+                        title="即將到期 (5天內)"
+                        value={urgentCount}
+                        icon={Clock}
+                        colorClass="bg-yellow-500"
+                    />
+                    <StatCard
+                        title="已逾期案件"
+                        value={overdueCount}
+                        icon={FileWarning}
+                        colorClass="bg-red-500"
+                    />
+                    <StatCard
+                        title="本月已完成"
+                        value={violations.filter(v => v.status === ViolationStatus.COMPLETED).length}
+                        icon={CheckCircle2}
+                        colorClass="bg-green-500"
+                    />
+                </div>
+
+                {/* 到期提醒區域 */}
+                {urgentViolations.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+                        <div className="flex items-center gap-3 mb-4">
+                            <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                            <h2 className="text-lg font-semibold text-yellow-800">
+                                ⚠️ 到期前5日提醒 ({urgentViolations.length}件待處理)
+                            </h2>
+                        </div>
+                        <div className="space-y-3">
+                            {urgentViolations.map(v => (
+                                <div key={v.id} className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-yellow-100">
+                                    <div>
+                                        <p className="font-medium text-slate-800">{v.projectName}</p>
+                                        <p className="text-sm text-slate-500">{v.contractorName} | {v.description?.substring(0, 30) || '無說明'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                                            剩餘 {getDaysRemaining(v.lectureDeadline)} 天
+                                        </span>
+                                        <p className="text-xs text-slate-500 mt-1">截止：{formatDate(v.lectureDeadline)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    };
 
     const renderViolationList = () => (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -346,8 +394,8 @@ function App() {
                                             <button
                                                 onClick={() => handleStatusToggle(violation.id)}
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${violation.status === ViolationStatus.COMPLETED
-                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                        : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                                                     }`}
                                             >
                                                 {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}
@@ -587,7 +635,7 @@ function App() {
                     <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
                         SG
                     </div>
-                    <span className="text-white font-bold text-lg tracking-tight">SafetyGuard</span>
+                    <span className="text-white font-bold text-lg tracking-tight">違規講習登入表</span>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -682,6 +730,9 @@ function App() {
                 violation={emailState.violation as Violation}
                 coordinator={emailState.violation ? getCoordinatorForProject(emailState.violation.projectName) : undefined}
             />
+
+            {/* Loading Modal - 上傳/同步時顯示 */}
+            <LoadingModal isOpen={isLoading} message="資料同步中..." />
 
         </div>
     );

@@ -12,16 +12,18 @@ interface ViolationModalProps {
 }
 
 export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose, onSave, projects }) => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
+
   const [formData, setFormData] = useState<Partial<Violation>>({
     contractorName: '',
     projectName: '',
-    violationDate: '',
+    violationDate: today, // 預設為今日
     description: '',
     status: ViolationStatus.PENDING,
   });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   useEffect(() => {
     if (formData.violationDate) {
       // Auto calculate deadline: +30 days
@@ -32,20 +34,20 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
 
   // When project changes, auto-fill the single contractor
   const handleProjectChange = (projectName: string) => {
-      const project = projects.find(p => p.name === projectName);
-      setFormData(prev => ({ 
-          ...prev, 
-          projectName, 
-          contractorName: project ? project.contractor : '' // Auto-fill 1-to-1 mapping
-      }));
+    const project = projects.find(p => p.name === projectName);
+    setFormData(prev => ({
+      ...prev,
+      projectName,
+      contractorName: project ? project.contractor : '' // Auto-fill 1-to-1 mapping
+    }));
   };
 
   const handleDescriptionPreset = (val: string) => {
-      if(!val) return;
-      setFormData(prev => ({
-          ...prev,
-          description: val
-      }));
+    if (!val) return;
+    setFormData(prev => ({
+      ...prev,
+      description: val
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,27 +60,27 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
 
     // 如果有檔案，轉為 Base64
     if (file) {
-        try {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = error => reject(error);
-            });
-            // 移除 data:image/png;base64, 前綴
-            const base64Content = base64.split(',')[1];
-            
-            filePayload = {
-                name: file.name,
-                type: file.type,
-                base64: base64Content
-            };
-        } catch (error) {
-            console.error("File processing failed", error);
-            alert("檔案處理失敗，請重試");
-            setIsProcessing(false);
-            return;
-        }
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+        // 移除 data:image/png;base64, 前綴
+        const base64Content = base64.split(',')[1];
+
+        filePayload = {
+          name: file.name,
+          type: file.type,
+          base64: base64Content
+        };
+      } catch (error) {
+        console.error("File processing failed", error);
+        alert("檔案處理失敗，請重試");
+        setIsProcessing(false);
+        return;
+      }
     }
 
     const newViolation: Violation = {
@@ -94,15 +96,15 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     };
 
     onSave(newViolation, filePayload);
-    
+
     // Reset
     setFormData({
-        contractorName: '',
-        projectName: '',
-        violationDate: '',
-        description: '',
-        status: ViolationStatus.PENDING,
-        lectureDeadline: ''
+      contractorName: '',
+      projectName: '',
+      violationDate: '',
+      description: '',
+      status: ViolationStatus.PENDING,
+      lectureDeadline: ''
     });
     setFile(null);
     setIsProcessing(false);
@@ -120,23 +122,23 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-          
+
           {/* Project Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">工程名稱</label>
             <div className="relative">
-                <select
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all appearance-none bg-white"
-                    value={formData.projectName}
-                    onChange={(e) => handleProjectChange(e.target.value)}
-                >
-                    <option value="">請選擇工程</option>
-                    {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                required
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all appearance-none bg-white"
+                value={formData.projectName}
+                onChange={(e) => handleProjectChange(e.target.value)}
+              >
+                <option value="">請選擇工程</option>
+                {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           </div>
 
@@ -144,19 +146,19 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">承攬商名稱</label>
             <input
-                type="text"
-                readOnly
-                className="w-full px-3 py-2 border border-slate-200 bg-slate-100 text-slate-600 rounded-lg focus:outline-none cursor-not-allowed"
-                placeholder="選擇工程後自動帶入"
-                value={formData.contractorName}
+              type="text"
+              readOnly
+              className="w-full px-3 py-2 border border-slate-200 bg-slate-100 text-slate-600 rounded-lg focus:outline-none cursor-not-allowed"
+              placeholder="選擇工程後自動帶入"
+              value={formData.contractorName}
             />
             {formData.projectName && !formData.contractorName && (
-                <p className="text-xs text-red-500 mt-1">錯誤：此工程尚未設定承攬商。</p>
+              <p className="text-xs text-red-500 mt-1">錯誤：此工程尚未設定承攬商。</p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* Violation Date */}
+            {/* Violation Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">違規日期</label>
               <div className="relative">
@@ -187,17 +189,17 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
           {/* Description */}
           <div>
             <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-slate-700">違規內容說明</label>
-                <select 
-                    className="text-xs border-none bg-slate-100 rounded px-2 py-1 text-slate-600 cursor-pointer hover:bg-slate-200 outline-none"
-                    onChange={(e) => handleDescriptionPreset(e.target.value)}
-                    value=""
-                >
-                    <option value="">快速帶入違規事項...</option>
-                    {COMMON_VIOLATIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
+              <label className="block text-sm font-medium text-slate-700">違規內容說明</label>
+              <select
+                className="text-xs border-none bg-slate-100 rounded px-2 py-1 text-slate-600 cursor-pointer hover:bg-slate-200 outline-none"
+                onChange={(e) => handleDescriptionPreset(e.target.value)}
+                value=""
+              >
+                <option value="">快速帶入違規事項...</option>
+                {COMMON_VIOLATIONS.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
             </div>
-            
+
             <textarea
               rows={3}
               required
@@ -212,22 +214,22 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單 (圖片/PDF)</label>
             <div className="flex items-center justify-center w-full">
-                <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${file ? 'border-indigo-300 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}`}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {file ? (
-                             <div className="flex items-center gap-2">
-                                <FileText className="w-6 h-6 text-indigo-600" />
-                                <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{file.name}</p>
-                             </div>
-                        ) : (
-                            <>
-                                <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                                <p className="text-xs text-slate-500">點擊上傳</p>
-                            </>
-                        )}
+              <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${file ? 'border-indigo-300 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}`}>
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  {file ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-indigo-600" />
+                      <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{file.name}</p>
                     </div>
-                    <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                </label>
+                  ) : (
+                    <>
+                      <Upload className="w-6 h-6 text-slate-400 mb-1" />
+                      <p className="text-xs text-slate-500">點擊上傳</p>
+                    </>
+                  )}
+                </div>
+                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              </label>
             </div>
           </div>
 
