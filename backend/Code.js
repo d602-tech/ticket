@@ -58,17 +58,35 @@ function handleRequest(e) {
       else if (data.action === 'sync') {
         // 1. 處理檔案上傳
         var uploadedFileUrl = "";
+
+        // 🔍 調試日誌
+        Logger.log("=== 開始處理 sync 請求 ===");
+        Logger.log("是否有 fileUpload: " + (data.fileUpload ? "是" : "否"));
+        Logger.log("是否有 fileData: " + (data.fileUpload && data.fileUpload.fileData ? "是" : "否"));
+
         if (data.fileUpload && data.fileUpload.fileData) {
+          Logger.log("📁 開始上傳檔案: " + data.fileUpload.fileData.name);
+          Logger.log("檔案類型: " + data.fileUpload.fileData.type);
+          Logger.log("Base64 長度: " + (data.fileUpload.fileData.base64 ? data.fileUpload.fileData.base64.length : 0));
+
           try {
             // 使用指定的 Google Drive 資料夾
             var folderId = "1dBe4PF_20gXVMqospMQfWxC76v3PeYtv";
+            Logger.log("目標資料夾 ID: " + folderId);
+
             var folder = DriveApp.getFolderById(folderId);
+            Logger.log("✅ 成功取得資料夾: " + folder.getName());
 
             var contentType = data.fileUpload.fileData.type;
             var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, data.fileUpload.fileData.name);
+            Logger.log("✅ Blob 建立成功");
+
             var file = folder.createFile(blob);
+            Logger.log("✅ 檔案建立成功: " + file.getName());
+
             file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
             uploadedFileUrl = file.getUrl();
+            Logger.log("✅ 檔案上傳完成，URL: " + uploadedFileUrl);
 
             // 回報上傳成功
             output.fileUploadStatus = {
@@ -86,11 +104,14 @@ function handleRequest(e) {
               });
             }
           } catch (err) {
+            Logger.log("❌ 上傳失敗: " + err.toString());
             output.fileUploadStatus = {
               success: false,
               error: err.toString()
             };
           }
+        } else {
+          Logger.log("⏭️ 沒有檔案需要上傳");
         }
 
         // 2. 同步資料
