@@ -2,9 +2,10 @@
 export const GAS_URL_KEY = 'safety_guard_gas_url';
 
 // 從環境變數取得預設 URL
-const DEFAULT_GAS_URL = import.meta.env.VITE_GAS_URL || '';
+const DEFAULT_GAS_URL = import.meta.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbzLmt5zmH3YPIUnBzoeyrT9nrGJZzw28wzPBqhPtplhEKzqt2jc35PnwgBMaTxepeuH/exec';
 
-export const getApiUrl = () => localStorage.getItem(GAS_URL_KEY) || DEFAULT_GAS_URL;
+// 優先使用環境變數，如果沒有才用 localStorage
+export const getApiUrl = () => DEFAULT_GAS_URL || localStorage.getItem(GAS_URL_KEY);
 export const setApiUrl = (url: string) => localStorage.setItem(GAS_URL_KEY, url);
 export const hasDefaultUrl = () => !!DEFAULT_GAS_URL;
 
