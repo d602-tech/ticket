@@ -21,7 +21,8 @@ import {
     Database,
     ExternalLink,
     FileText,
-    Upload
+    Upload,
+    RefreshCw
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -587,20 +588,24 @@ function App() {
                                                 </button>
                                                 <button
                                                     onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : handleUploadScanFile(violation, false)}
-                                                    onContextMenu={(e) => {
-                                                        e.preventDefault();
-                                                        if (violation.scanFileUrl) {
-                                                            handleUploadScanFile(violation, true);
-                                                        }
-                                                    }}
                                                     className={`p-1.5 rounded-lg transition-all ${violation.scanFileUrl
                                                         ? 'text-purple-600 bg-purple-50 hover:bg-purple-100'
                                                         : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
                                                         }`}
-                                                    title={violation.scanFileUrl ? `${violation.scanFileName}（右鍵：替換檔案）` : '上傳簽辦掃描檔'}
+                                                    title={violation.scanFileUrl ? `查看 ${violation.scanFileName}` : '上傳簽辦掃描檔'}
                                                 >
                                                     <Upload size={18} />
                                                 </button>
+                                                {/* 替換按鈕（僅已上傳時顯示） */}
+                                                {violation.scanFileUrl && (
+                                                    <button
+                                                        onClick={() => handleUploadScanFile(violation, true)}
+                                                        className="p-1.5 text-orange-500 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all"
+                                                        title="替換掃描檔（需填寫原因）"
+                                                    >
+                                                        <RefreshCw size={18} />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleDeleteViolation(violation.id)}
                                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"

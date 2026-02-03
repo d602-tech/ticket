@@ -16,6 +16,10 @@ export interface EmailData {
     ccEmail?: string; // 副本寄給登入者
     violationId?: string; // 用於更新寄信次數
     scanFileUrl?: string; // 掃描檔附件
+    // HTML 模板使用的欄位
+    projectName?: string;
+    contractorName?: string;
+    deadline?: string;
 }
 
 export interface LoginResult {

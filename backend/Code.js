@@ -58,11 +58,19 @@ function handleRequest(e) {
 
       // ========== 寄送 Email ==========
       if (data.action === 'sendEmail') {
-        // 寄送郵件，加入副本給登入者
+        // 產生 HTML 格式郵件
+        var htmlBody = generateManualHtmlEmail({
+          subject: data.subject,
+          body: data.body,
+          projectName: data.projectName || '-',
+          contractorName: data.contractorName || '-',
+          deadline: data.deadline || '-'
+        });
+
         var emailOptions = {
           to: data.to,
           subject: data.subject,
-          body: data.body
+          htmlBody: htmlBody  // 使用 HTML 格式
         };
 
         // 如果有提供登入者信箱，加入副本
@@ -782,6 +790,67 @@ function generateHtmlEmail(type, violation, project, daysRemaining) {
     // Footer
     '<tr><td style="padding:24px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">' +
     '<p style="margin:0 0 8px;color:#6b7280;font-size:12px;">此信件由系統自動發送，請勿直接回覆</p>' +
+    '<p style="margin:0;color:#9ca3af;font-size:11px;">工安組 違規講習追蹤系統</p>' +
+    '</td></tr>' +
+
+    '</table></td></tr></table></body></html>';
+}
+
+// 手動發信 HTML 模板
+function generateManualHtmlEmail(options) {
+  var subject = options.subject || '違規講習通知';
+  var body = options.body || '';
+  var projectName = options.projectName || '-';
+  var contractorName = options.contractorName || '-';
+  var deadline = options.deadline || '-';
+
+  // 將純文字 body 轉為帶換行的 HTML
+  var bodyHtml = body.replace(/\n/g, '<br>');
+
+  return '<!DOCTYPE html>' +
+    '<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>' + subject + '</title></head>' +
+    '<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;">' +
+
+    // 外層容器
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:40px 20px;">' +
+    '<tr><td align="center">' +
+
+    // 主卡片
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">' +
+
+    // Header - 品牌色
+    '<tr><td style="background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);padding:32px 40px;text-align:center;">' +
+    '<div style="font-size:40px;margin-bottom:8px;">📋</div>' +
+    '<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">' + subject + '</h1>' +
+    '</td></tr>' +
+
+    // 資訊區塊
+    '<tr><td style="padding:32px 40px;">' +
+
+    // 快速資訊卡
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;margin-bottom:24px;">' +
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:80px;color:#6b7280;font-size:13px;">工程名稱</span>' +
+    '<span style="color:#111827;font-size:14px;font-weight:600;">' + projectName + '</span></td></tr>' +
+    '<tr><td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">' +
+    '<span style="display:inline-block;width:80px;color:#6b7280;font-size:13px;">承攬商</span>' +
+    '<span style="color:#111827;font-size:14px;">' + contractorName + '</span></td></tr>' +
+    '<tr><td style="padding:16px 20px;">' +
+    '<span style="display:inline-block;width:80px;color:#6b7280;font-size:13px;">講習期限</span>' +
+    '<span style="color:#EF4444;font-size:14px;font-weight:700;">' + deadline + '</span></td></tr>' +
+    '</table>' +
+
+    // 郵件內文
+    '<div style="padding:20px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;color:#374151;font-size:14px;line-height:1.8;">' +
+    bodyHtml +
+    '</div>' +
+
+    '</td></tr>' +
+
+    // Footer
+    '<tr><td style="padding:24px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">' +
+    '<p style="margin:0 0 8px;color:#6b7280;font-size:12px;">如有任何疑問，請聯繫工安組承辦人員</p>' +
     '<p style="margin:0;color:#9ca3af;font-size:11px;">工安組 違規講習追蹤系統</p>' +
     '</td></tr>' +
 
