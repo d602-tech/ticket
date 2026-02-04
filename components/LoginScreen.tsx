@@ -142,12 +142,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         <button
                             type="button"
                             onClick={() => setShowUrlInput(true)}
-                            className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                            className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 absolute top-4 right-4"
                         >
                             <Link size={12} />
-                            變更 API URL
+                            設定
                         </button>
                     )}
+
+                    {/* Google Sign-In (Top) */}
+                    <div className="space-y-4">
+                        <div id="google-signin-btn" className="flex justify-center w-full"></div>
+
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-slate-200"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="bg-white px-2 text-slate-400 uppercase tracking-wider text-xs">Or login with email</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="space-y-4">
                         <div>
@@ -156,7 +170,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                                 <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                                 <input
                                     type="text"
-                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none transition-all"
                                     placeholder="請輸入帳號"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -169,7 +183,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                                 <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                                 <input
                                     type="password"
-                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none transition-all"
                                     placeholder="請輸入密碼"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -198,18 +212,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             '登入系統'
                         )}
                     </button>
-
-                    {/* Google Sign-In */}
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200"></div>
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="bg-white px-2 text-slate-400">或</span>
-                        </div>
-                    </div>
-
-                    <div id="google-signin-btn" className="flex justify-center"></div>
 
                     <p className="text-xs text-center text-slate-400 mt-4">
                         預設帳號: admin / 密碼: admin123

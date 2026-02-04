@@ -22,7 +22,8 @@ import {
     ExternalLink,
     FileText,
     Upload,
-    RefreshCw
+    RefreshCw,
+    DollarSign
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator, User } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -348,7 +349,7 @@ function App() {
 
     // Derived State
     // 取得所有主辦部門（去重）
-    const hostTeams = [...new Set(projects.map(p => p.hostTeam).filter(Boolean))];
+    const hostTeams = ['土木工作隊', '機械工作隊', '電氣工作隊', '建築工作隊', '環安工作隊', '綜合工作隊'];
 
     const filteredViolations = violations.filter(v => {
         const matchesSearch = v.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -369,6 +370,11 @@ function App() {
         getDaysRemaining(v.lectureDeadline) <= 2 &&
         getDaysRemaining(v.lectureDeadline) >= 0
     ).length;
+
+    // 計算累積罰款金額
+    const totalFineAmount = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
+    // 已辦理場次 (Completed Statistics)
+    const completedCount = violations.filter(v => v.status === ViolationStatus.COMPLETED).length;
 
     // 主辦工作隊顏色對應（六種顏色）
     const getHostTeamColor = (team: string | undefined) => {
@@ -398,12 +404,25 @@ function App() {
 
         return (
             <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-8">
                     <StatCard
-                        title="待辦理違規"
+                        title="已結案/已辦理"
+                        value={completedCount}
+                        icon={CheckCircle2}
+                        colorClass="bg-emerald-500" // Darker Green
+                    />
+                    <StatCard
+                        title="累積罰款金額"
+                        value={`$${totalFineAmount.toLocaleString()}`}
+                        icon={DollarSign}
+                        colorClass="bg-indigo-900" // Premium Dark
+                        isCurrency
+                    />
+                    <StatCard
+                        title="未結案違規"
                         value={pendingCount}
                         icon={AlertTriangle}
-                        colorClass="bg-orange-500"
+                        colorClass="bg-amber-500"
                     />
                     <StatCard
                         title="5天內到期"
@@ -421,34 +440,28 @@ function App() {
                         title="已逾期案件"
                         value={overdueCount}
                         icon={FileWarning}
-                        colorClass="bg-red-500"
-                    />
-                    <StatCard
-                        title="已結案案件"
-                        value={violations.filter(v => v.status === ViolationStatus.COMPLETED).length}
-                        icon={CheckCircle2}
-                        colorClass="bg-green-500"
+                        colorClass="bg-rose-600"
                     />
                 </div>
 
                 {/* 到期提醒區域 */}
                 {urgentViolations.length > 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
                         <div className="flex items-center gap-3 mb-4">
-                            <AlertTriangle className="w-6 h-6 text-yellow-600" />
-                            <h2 className="text-lg font-semibold text-yellow-800">
+                            <AlertTriangle className="w-6 h-6 text-amber-600" />
+                            <h2 className="text-lg font-semibold text-amber-900">
                                 ⚠️ 到期前5日提醒 ({urgentViolations.length}件待處理)
                             </h2>
                         </div>
                         <div className="space-y-3">
                             {urgentViolations.map(v => (
-                                <div key={v.id} className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-yellow-100">
+                                <div key={v.id} className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-amber-100">
                                     <div>
                                         <p className="font-medium text-slate-800">{v.projectName}</p>
                                         <p className="text-sm text-slate-500">{v.contractorName} | {v.description?.substring(0, 30) || '無說明'}</p>
                                     </div>
                                     <div className="text-right">
-                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
                                             剩餘 {getDaysRemaining(v.lectureDeadline)} 天
                                         </span>
                                         <p className="text-xs text-slate-500 mt-1">截止：{formatDate(v.lectureDeadline)}</p>
@@ -472,7 +485,7 @@ function App() {
                         <input
                             type="text"
                             placeholder="搜尋承攬商或工程..."
-                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -480,7 +493,7 @@ function App() {
                     <div className="relative">
                         <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <select
-                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value as any)}
                         >
@@ -495,7 +508,7 @@ function App() {
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <select
-                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
                             value={hostTeamFilter}
                             onChange={(e) => setHostTeamFilter(e.target.value)}
                         >
@@ -511,7 +524,7 @@ function App() {
                         setEditingViolation(null);
                         setViolationModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-indigo-200"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"
                 >
                     <Plus size={16} />
                     新增紀錄
@@ -612,7 +625,7 @@ function App() {
                                                 )}
                                                 <button
                                                     onClick={() => openEmailModal(violation)}
-                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all"
                                                     title="發送通知信"
                                                 >
                                                     <Mail size={18} />
@@ -649,7 +662,7 @@ function App() {
                                                 )}
                                                 <button
                                                     onClick={() => handleEditViolation(violation)}
-                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all"
                                                     title="編輯詳細資料"
                                                 >
                                                     <Edit2 size={18} />
@@ -703,7 +716,7 @@ function App() {
         <div className="animate-fade-in max-w-2xl mx-auto">
             <div className="flex items-center gap-4 mb-6">
                 <h2 className="text-xl font-bold text-slate-800">帳號管理</h2>
-                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-medium">
                     管理員專用
                 </span>
             </div>
@@ -716,7 +729,7 @@ function App() {
                         <input
                             type="text"
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
                             value={newUserForm.name}
                             onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
                         />
@@ -726,7 +739,7 @@ function App() {
                         <input
                             type="email"
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
                             value={newUserForm.email}
                             onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
                         />
@@ -736,7 +749,7 @@ function App() {
                         <input
                             type="text" // Visible for admin creation
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
                             value={newUserForm.password}
                             onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
                         />
@@ -744,7 +757,7 @@ function App() {
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">權限角色</label>
                         <select
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                             value={newUserForm.role}
                             onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
                         >
@@ -754,7 +767,7 @@ function App() {
                     </div>
                     <button
                         type="submit"
-                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors mt-4"
+                        className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-colors mt-4 shadow-lg shadow-slate-200"
                     >
                         新增帳號
                     </button>
@@ -766,30 +779,38 @@ function App() {
     const renderProjects = () => (
         <div className="space-y-6">
             {/* 工具列：篩選和新增 */}
-            <div className="flex flex-wrap justify-between items-center gap-4">
-                {/* 主辦工作隊篩選器 */}
-                <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-slate-400" />
-                    <select
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={projectHostTeamFilter}
-                        onChange={(e) => setProjectHostTeamFilter(e.target.value)}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                {/* 主辦工作隊篩選器 - 6 Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => setProjectHostTeamFilter('ALL')}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === 'ALL'
+                            ? 'bg-slate-800 text-white shadow-md'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
                     >
-                        <option value="ALL">所有工作隊</option>
-                        {hostTeams.map(team => (
-                            <option key={team} value={team}>{team}</option>
-                        ))}
-                    </select>
-                    <span className="text-sm text-slate-500">
-                        共 {filteredProjects.length} 個工程
-                    </span>
+                        全部
+                    </button>
+                    {hostTeams.map(team => (
+                        <button
+                            key={team}
+                            onClick={() => setProjectHostTeamFilter(team)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === team
+                                ? 'bg-slate-800 text-white shadow-md'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                }`}
+                        >
+                            {team}
+                        </button>
+                    ))}
                 </div>
+
                 <button
                     onClick={() => {
                         setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' });
                         setProjectFormOpen(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-indigo-200"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300 ml-auto"
                 >
                     <Plus size={16} />
                     新增工程專案
