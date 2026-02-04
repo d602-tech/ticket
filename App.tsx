@@ -521,7 +521,8 @@ function App() {
                             <th className="px-6 py-4">承攬商 / 工程</th>
                             <th className="px-6 py-4">違規事項</th>
                             <th className="px-6 py-4">講習期限</th>
-                            <th className="px-6 py-4">狀態</th>
+                            <th className="px-6 py-4">完成日期</th>
+                            <th className="px-6 py-4">辦理進度</th>
                             <th className="px-6 py-4 text-right">操作</th>
                         </tr>
                     </thead>
@@ -580,9 +581,9 @@ function App() {
                                         <td className="px-6 py-4">
                                             <span
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
-                                                        violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
-                                                            violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
-                                                                'bg-yellow-100 text-yellow-700'
+                                                    violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
+                                                        violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
+                                                            'bg-yellow-100 text-yellow-700'
                                                     }`}
                                             >
                                                 {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}
