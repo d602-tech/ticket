@@ -61,4 +61,4 @@ export interface Coordinator {
   email: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'PROJECTS';
+export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'PROJECTS' | 'ADMIN';

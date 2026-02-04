@@ -24,7 +24,7 @@ import {
     Upload,
     RefreshCw
 } from 'lucide-react';
-import { Violation, Project, ViewState, ViolationStatus, Coordinator } from './types';
+import { Violation, Project, ViewState, ViolationStatus, Coordinator, User } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
 import { getApiUrl } from './services/apiService';
 import { formatDate, getDaysRemaining, generateId } from './utils';
@@ -41,6 +41,10 @@ function App() {
     const [violations, setViolations] = useState<Violation[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+
+    // User Management State (Admin Only)
+    const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
+    const [currentUserRole, setCurrentUserRole] = useState<string>(''); // Current logged in user role
 
     // Modal States
     const [isViolationModalOpen, setViolationModalOpen] = useState(false);
@@ -92,6 +96,7 @@ function App() {
     const handleLogin = (success: boolean, user?: { email: string; name: string; role: string }) => {
         setIsAuthenticated(success);
         if (user?.email) setCurrentUserEmail(user.email);
+        if (user?.role) setCurrentUserRole(user.role);
     };
 
     const handleLogout = () => {
@@ -567,16 +572,22 @@ function App() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-slate-600">
-                                                {violation.status === ViolationStatus.COMPLETED && violation.completionDate
-                                                    ? <span className="text-green-600 font-medium">完: {formatDate(violation.completionDate)}</span>
-                                                    : formatDate(violation.lectureDeadline)
-                                                }
+                                                {formatDate(violation.lectureDeadline)}
+                                                {violation.status !== ViolationStatus.COMPLETED && (
+                                                    <div className={`text-xs font-medium mt-1 ${isOverdue ? 'text-red-500' : daysRemaining <= 5 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                                        {isOverdue ? `已逾期 ${Math.abs(daysRemaining)} 天` : `剩餘 ${daysRemaining} 天`}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {violation.status !== ViolationStatus.COMPLETED && (
-                                                <div className={`text-xs font-medium mt-1 ${isOverdue ? 'text-red-500' : daysRemaining <= 5 ? 'text-orange-500' : 'text-slate-400'}`}>
-                                                    {isOverdue ? `已逾期 ${Math.abs(daysRemaining)} 天` : `剩餘 ${daysRemaining} 天`}
-                                                </div>
-                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-slate-600">
+                                                {violation.completionDate ? (
+                                                    <span className="text-green-600 font-medium">{formatDate(violation.completionDate)}</span>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span
@@ -955,6 +966,15 @@ function App() {
                         <Briefcase size={20} />
                         工程管理
                     </button>
+                    {currentUserRole === 'admin' && (
+                        <button
+                            onClick={() => setView('ADMIN')}
+                            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
+                        >
+                            <Users size={20} />
+                            帳號管理
+                        </button>
+                    )}
                 </nav>
 
                 <div className="p-4 border-t border-slate-800">
@@ -996,6 +1016,7 @@ function App() {
                             {view === 'DASHBOARD' && '系統總覽'}
                             {view === 'VIOLATIONS' && '違規管理紀錄'}
                             {view === 'PROJECTS' && '工程專案管理'}
+                            {view === 'ADMIN' && '系統管理'}
                         </h1>
                         <p className="text-slate-500 mt-1 text-sm">管理違規事項並確保符合工安規範。</p>
                     </div>
@@ -1009,6 +1030,7 @@ function App() {
                 {view === 'DASHBOARD' && renderDashboard()}
                 {view === 'VIOLATIONS' && renderViolationList()}
                 {view === 'PROJECTS' && renderProjects()}
+                {view === 'ADMIN' && renderUserManagement()}
             </main>
 
             <ViolationModal

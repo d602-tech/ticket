@@ -58,6 +58,32 @@ function handleRequest(e) {
         return jsonOutput(output);
       }
 
+      // ========== 新增使用者 (Admin Only) ==========
+      if (data.action === 'addUser') {
+        // Simple authorization check (In production this should be more robust)
+        if (data.adminRole !== 'admin') {
+          return jsonOutput({ success: false, error: '無權限' });
+        }
+
+        var users = loadData(ss, 'Users');
+        // Check if email already exists
+        if (users.some(function (u) { return u.email === data.newUser.email; })) {
+          return jsonOutput({ success: false, error: '該 Email 已存在' });
+        }
+
+        var newUser = {
+          email: data.newUser.email,
+          password: data.newUser.password,
+          name: data.newUser.name,
+          role: data.newUser.role || 'user'
+        };
+
+        users.push(newUser);
+        saveData(ss, 'Users', users);
+        output = { success: true, message: '使用者已新增' };
+        return jsonOutput(output);
+      }
+
       // ========== 寄送 Email ==========
       if (data.action === 'sendEmail') {
         // 產生 HTML 格式郵件

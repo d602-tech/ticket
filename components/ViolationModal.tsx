@@ -225,7 +225,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
                 onChange={(e) => handleProjectChange(e.target.value)}
               >
                 <option value="">請選擇工程</option>
-                {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                {projects.map(p => <option key={p.id} value={p.name}>{(p.sequence ? p.sequence + '. ' : '') + p.name}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -287,16 +287,25 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">罰款金額</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={formData.fineAmount}
-                    onChange={(e) => setFormData({ ...formData, fineAmount: Number(e.target.value) })}
-                  />
-                  <DollarSign className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={formData.fineAmount}
+                      onChange={(e) => setFormData({ ...formData, fineAmount: Number(e.target.value) })}
+                    />
+                    <DollarSign className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, fineAmount: 10000 })}
+                    className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded border border-indigo-200 whitespace-nowrap"
+                  >
+                    $1萬
+                  </button>
                 </div>
               </div>
 
