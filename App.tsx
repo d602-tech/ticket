@@ -673,6 +673,96 @@ function App() {
         </div>
     );
 
+    const handleAddUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const response = await fetch(getApiUrl()!, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'addUser',
+                    adminRole: currentUserRole,
+                    newUser: newUserForm
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('使用者新增成功');
+                setNewUserForm({ email: '', password: '', name: '', role: 'user' });
+            } else {
+                alert('新增失敗: ' + result.error);
+            }
+        } catch (e) {
+            alert('連線失敗');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const renderUserManagement = () => (
+        <div className="animate-fade-in max-w-2xl mx-auto">
+            <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-xl font-bold text-slate-800">帳號管理</h2>
+                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                    管理員專用
+                </span>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">新增使用者</h3>
+                <form onSubmit={handleAddUser} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={newUserForm.name}
+                            onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Email (帳號)</label>
+                        <input
+                            type="email"
+                            required
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={newUserForm.email}
+                            onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">密碼</label>
+                        <input
+                            type="text" // Visible for admin creation
+                            required
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={newUserForm.password}
+                            onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">權限角色</label>
+                        <select
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            value={newUserForm.role}
+                            onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                        >
+                            <option value="user">一般使用者 (User)</option>
+                            <option value="admin">系統管理員 (Admin)</option>
+                        </select>
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors mt-4"
+                    >
+                        新增帳號
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+
     const renderProjects = () => (
         <div className="space-y-6">
             {/* 工具列：篩選和新增 */}

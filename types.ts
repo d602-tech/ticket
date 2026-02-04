@@ -49,8 +49,10 @@ export interface Project {
 }
 
 export interface User {
-  username: string;
-  isAuthenticated: boolean;
+  email: string;
+  name: string;
+  role: string;
+  password?: string;
 }
 
 // Keeping for backward compatibility if needed, but primarily using Project now
