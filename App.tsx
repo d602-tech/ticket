@@ -360,12 +360,12 @@ function App() {
         return matchesSearch && matchesStatus && matchesHostTeam;
     });
 
-    const pendingCount = violations.filter(v => v.status === ViolationStatus.PENDING).length;
-    const overdueCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) < 0).length;
-    const urgentCount = violations.filter(v => v.status === ViolationStatus.PENDING && getDaysRemaining(v.lectureDeadline) <= 5 && getDaysRemaining(v.lectureDeadline) >= 0).length;
+    const pendingCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED).length;
+    const overdueCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED && getDaysRemaining(v.lectureDeadline) < 0).length;
+    const urgentCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED && getDaysRemaining(v.lectureDeadline) <= 5 && getDaysRemaining(v.lectureDeadline) >= 0).length;
     // 新增：2日內到期
     const within2DaysCount = violations.filter(v =>
-        v.status === ViolationStatus.PENDING &&
+        v.status !== ViolationStatus.COMPLETED &&
         getDaysRemaining(v.lectureDeadline) <= 2 &&
         getDaysRemaining(v.lectureDeadline) >= 0
     ).length;
@@ -391,7 +391,7 @@ function App() {
     const renderDashboard = () => {
         // 找出到期前5日且未完成的違規
         const urgentViolations = violations.filter(v =>
-            v.status === ViolationStatus.PENDING &&
+            v.status !== ViolationStatus.COMPLETED &&
             getDaysRemaining(v.lectureDeadline) <= 5 &&
             getDaysRemaining(v.lectureDeadline) >= 0
         );
@@ -424,7 +424,7 @@ function App() {
                         colorClass="bg-red-500"
                     />
                     <StatCard
-                        title="本月已完成"
+                        title="已結案案件"
                         value={violations.filter(v => v.status === ViolationStatus.COMPLETED).length}
                         icon={CheckCircle2}
                         colorClass="bg-green-500"
