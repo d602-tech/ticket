@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Calendar, ChevronDown, FileText } from 'lucide-react';
+import { X, Upload, Calendar, ChevronDown, FileText, DollarSign, Users } from 'lucide-react';
 import { Project, Violation, ViolationStatus } from '../types';
 import { addDays, generateId } from '../utils';
 import { COMMON_VIOLATIONS } from '../services/storageService';
@@ -9,21 +9,51 @@ interface ViolationModalProps {
   onClose: () => void;
   onSave: (violation: Violation, fileData?: { name: string, type: string, base64: string }) => void;
   projects: Project[];
+  initialData?: Violation | null;
 }
 
-export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose, onSave, projects }) => {
+export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose, onSave, projects, initialData }) => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
 
   const [formData, setFormData] = useState<Partial<Violation>>({
     contractorName: '',
     projectName: '',
-    violationDate: today, // 預設為今日
+    violationDate: today,
     description: '',
     status: ViolationStatus.PENDING,
+    fineAmount: 0,
+    isMajorViolation: false,
+    participants: '',
+    completionDate: ''
   });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Initialize form with data when modal opens
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData({
+        ...initialData,
+        // Ensure numbers/booleans are correctly set
+        fineAmount: initialData.fineAmount || 0,
+        isMajorViolation: initialData.isMajorViolation || false
+      });
+    } else if (isOpen) {
+      // Reset for new entry
+      setFormData({
+        contractorName: '',
+        projectName: '',
+        violationDate: today,
+        description: '',
+        status: ViolationStatus.PENDING,
+        fineAmount: 0,
+        isMajorViolation: false,
+        participants: '',
+        completionDate: ''
+      });
+    }
+  }, [isOpen, initialData]);
 
   // 拖拉上傳處理
   const handleDragOver = (e: React.DragEvent) => {
@@ -44,6 +74,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       setFile(droppedFile);
     }
   };
+
   useEffect(() => {
     if (formData.violationDate) {
       // Auto calculate deadline: +32 days
@@ -51,6 +82,43 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       setFormData((prev) => ({ ...prev, lectureDeadline: deadline }));
     }
   }, [formData.violationDate]);
+
+  // 自動判斷參加人員邏輯
+  useEffect(() => {
+    let parts: string[] = [];
+    const fine = Number(formData.fineAmount) || 0;
+    const isMajor = formData.isMajorViolation;
+
+    // 1. 重大職災或永久失能
+    if (isMajor) {
+      parts = ['承攬商負責人', '工作場所負責人', '工安人員', '領班', '該工作班全體勞工'];
+    }
+    // 2. 罰款 >= 2萬
+    else if (fine >= 20000) {
+      parts = ['違規當事人', '承攬商負責人(或代理人)', '工作場所負責人', '工安人員', '領班'];
+    }
+    // 3. 1萬 <= 罰款 < 2萬
+    else if (fine >= 10000) {
+      parts = ['違規當事人', '工作場所負責人', '工安人員', '領班'];
+    }
+    // 4. 罰款 < 1萬 (與累計有關，此處簡化為基本人員，可手動修改)
+    else {
+      // 預設基本人員，提示使用者若為累計需自行調整
+      parts = ['違規當事人', '領班'];
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      participants: parts.join('、')
+    }));
+  }, [formData.fineAmount, formData.isMajorViolation]);
+
+  // 完成日期連動狀態
+  useEffect(() => {
+    if (formData.completionDate) {
+      setFormData(prev => ({ ...prev, status: ViolationStatus.COMPLETED }));
+    }
+  }, [formData.completionDate]);
 
   // When project changes, auto-fill the single contractor
   const handleProjectChange = (projectName: string) => {
@@ -104,29 +172,30 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     }
 
     const newViolation: Violation = {
-      id: generateId(),
+      id: initialData?.id || generateId(),
       contractorName: formData.contractorName,
       projectName: formData.projectName,
       violationDate: formData.violationDate,
       lectureDeadline: formData.lectureDeadline,
       description: formData.description || '',
-      status: ViolationStatus.PENDING,
-      fileName: file ? file.name : undefined,
-      fileUrl: '', // 後端處理後會填入
+      status: formData.status || ViolationStatus.PENDING,
+      fileName: file ? file.name : (initialData?.fileName), // Preserve old filename if not replaced
+      fileUrl: initialData?.fileUrl || '',
+      fineAmount: Number(formData.fineAmount) || 0,
+      isMajorViolation: formData.isMajorViolation || false,
+      participants: formData.participants || '',
+      completionDate: formData.completionDate || '',
+      // Preserve other fields
+      documentUrl: initialData?.documentUrl,
+      scanFileName: initialData?.scanFileName,
+      scanFileUrl: initialData?.scanFileUrl,
+      emailCount: initialData?.emailCount,
+      firstNotifyDate: initialData?.firstNotifyDate,
+      secondNotifyDate: initialData?.secondNotifyDate,
+      scanFileHistory: initialData?.scanFileHistory
     };
 
     onSave(newViolation, filePayload);
-
-    // Reset
-    setFormData({
-      contractorName: '',
-      projectName: '',
-      violationDate: '',
-      description: '',
-      status: ViolationStatus.PENDING,
-      lectureDeadline: ''
-    });
-    setFile(null);
     setIsProcessing(false);
     onClose();
   };
@@ -134,16 +203,16 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-          <h2 className="text-lg font-bold text-slate-800">新增違規紀錄</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg md:max-w-xl overflow-hidden animate-fade-in-up flex flex-col my-auto relative">
+        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0 sticky top-0 z-10">
+          <h2 className="text-lg font-bold text-slate-800">{initialData ? '編輯違規紀錄' : '新增違規紀錄'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto max-h-[80vh]">
 
           {/* Project Selection */}
           <div>
@@ -151,7 +220,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             <div className="relative">
               <select
                 required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all appearance-none bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all appearance-none bg-white font-medium text-slate-700"
                 value={formData.projectName}
                 onChange={(e) => handleProjectChange(e.target.value)}
               >
@@ -177,7 +246,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Violation Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">違規日期</label>
@@ -206,6 +275,60 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             </div>
           </div>
 
+          {/* New Section: Fine & Severity */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Upload size={16} className="text-indigo-500" />
+                違規情節與罰款
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">罰款金額</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formData.fineAmount}
+                    onChange={(e) => setFormData({ ...formData, fineAmount: Number(e.target.value) })}
+                  />
+                  <DollarSign className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="flex items-end pb-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={formData.isMajorViolation}
+                    onChange={(e) => setFormData({ ...formData, isMajorViolation: e.target.checked })}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-red-600">重大職災 / 永久失能</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Participants */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">應參加講習人員 (自動判定)</label>
+              <div className="relative">
+                <textarea
+                  rows={2}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={formData.participants}
+                  onChange={(e) => setFormData({ ...formData, participants: e.target.value })}
+                  placeholder="系統將根據罰款金額自動帶入..."
+                />
+                <Users className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -230,6 +353,36 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             />
           </div>
 
+          {/* Status & Completion Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">目前狀態</label>
+              <div className="relative">
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none appearance-none bg-white"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as ViolationStatus })}
+                >
+                  <option value={ViolationStatus.PENDING}>待辦理</option>
+                  <option value={ViolationStatus.NOTIFIED}>已通知</option>
+                  <option value={ViolationStatus.SUBMITTED}>已提送</option>
+                  <option value={ViolationStatus.COMPLETED}>已完成</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">完成日期 (選填)</label>
+              <input
+                type="date"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={formData.completionDate}
+                onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
+              />
+            </div>
+          </div>
+
           {/* File Upload with Drag & Drop */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">上傳罰單 (圖片/PDF) - 可拖拉上傳</label>
@@ -239,13 +392,13 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${isDragging
-                  ? 'border-indigo-500 bg-indigo-100 scale-105'
-                  : file
-                    ? 'border-indigo-300 bg-indigo-50'
-                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+              <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${isDragging
+                ? 'border-indigo-500 bg-indigo-100 scale-105'
+                : file
+                  ? 'border-indigo-300 bg-indigo-50'
+                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
                 }`}>
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <div className="flex flex-col items-center justify-center pt-2 pb-3">
                   {file ? (
                     <div className="flex items-center gap-2">
                       <FileText className="w-6 h-6 text-indigo-600" />
@@ -268,7 +421,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end gap-3 shrink-0">
+          <div className="pt-2 flex justify-end gap-3 shrink-0 pb-2">
             <button
               type="button"
               onClick={onClose}

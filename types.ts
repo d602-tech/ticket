@@ -1,6 +1,8 @@
 export enum ViolationStatus {
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
+  PENDING = 'PENDING', // 待辦理 (Default)
+  NOTIFIED = 'NOTIFIED', // 已通知
+  SUBMITTED = 'SUBMITTED', // 已提送
+  COMPLETED = 'COMPLETED', // 已完成
 }
 
 export interface Violation {
@@ -24,6 +26,12 @@ export interface Violation {
   managerEmail?: string;
   // 掃描檔修改歷史（JSON 字串）
   scanFileHistory?: string; // [{date, reason, oldUrl, newUrl}]
+
+  // 新增欄位 (New Fields)
+  fineAmount?: number; // 罰款金額
+  isMajorViolation?: boolean; // 是否重大違規/永久失能
+  participants?: string; // 應參加講習人員
+  completionDate?: string; // 完成日期 YYYY-MM-DD
 }
 
 export interface Project {

@@ -44,6 +44,7 @@ function App() {
 
     // Modal States
     const [isViolationModalOpen, setViolationModalOpen] = useState(false);
+    const [editingViolation, setEditingViolation] = useState<Violation | null>(null);
     const [emailState, setEmailState] = useState<{ isOpen: boolean; violation: Violation | null }>({ isOpen: false, violation: null });
 
     // Project Management State
@@ -102,14 +103,23 @@ function App() {
     const handleSaveViolation = async (newViolation: Violation, fileData?: { name: string, type: string, base64: string }) => {
         setIsLoading(true);
         try {
-            const updatedList = [newViolation, ...violations];
-            // 樂觀更新 (Optimistic Update)
+            let updatedList = [];
+
+            // Check if edit or create
+            const exists = violations.find(v => v.id === newViolation.id);
+            if (exists) {
+                updatedList = violations.map(v => v.id === newViolation.id ? newViolation : v);
+            } else {
+                updatedList = [newViolation, ...violations];
+            }
+
+            // 樂觀更新
             setViolations(updatedList);
 
             // 取得工程資訊以建立檔案名稱
             const project = projects.find(p => p.name === newViolation.projectName);
 
-            // 準備檔案上傳參數（含工程資訊）
+            // 準備檔案上傳參數
             const uploadPayload = fileData ? {
                 violationId: newViolation.id,
                 fileData: fileData,
@@ -123,8 +133,8 @@ function App() {
             // 同步後端
             const response = await syncData(undefined, updatedList, uploadPayload);
 
-            // 使用後端確認的資料更新 (這時後端應該已經填回 fileUrl)
             setViolations(response.violations);
+            setEditingViolation(null); // Clear editing state
         } catch (e) {
             console.error(e);
             alert('儲存失敗：' + (e as Error).message);
@@ -133,23 +143,13 @@ function App() {
         }
     };
 
-    const handleStatusToggle = async (id: string) => {
-        setIsLoading(true);
-        try {
-            const updatedList = violations.map(v =>
-                v.id === id
-                    ? { ...v, status: v.status === ViolationStatus.PENDING ? ViolationStatus.COMPLETED : ViolationStatus.PENDING }
-                    : v
-            );
-            setViolations(updatedList);
-            const response = await syncData(undefined, updatedList);
-            setViolations(response.violations);
-        } catch (e) {
-            alert('更新失敗');
-        } finally {
-            setIsLoading(false);
-        }
+    const handleEditViolation = (violation: Violation) => {
+        setEditingViolation(violation);
+        setViolationModalOpen(true);
     };
+
+    // Remove handleStatusToggle entirely or reimplement if needed. 
+    // We will use Edit Modal for status changes.
 
     const handleDeleteViolation = async (id: string) => {
         if (confirm('確定要刪除此筆紀錄嗎？')) {
@@ -481,6 +481,8 @@ function App() {
                         >
                             <option value="ALL">所有狀態</option>
                             <option value={ViolationStatus.PENDING}>待辦理</option>
+                            <option value={ViolationStatus.NOTIFIED}>已通知</option>
+                            <option value={ViolationStatus.SUBMITTED}>已提送</option>
                             <option value={ViolationStatus.COMPLETED}>已完成</option>
                         </select>
                     </div>
@@ -500,7 +502,10 @@ function App() {
                     </div>
                 </div>
                 <button
-                    onClick={() => setViolationModalOpen(true)}
+                    onClick={() => {
+                        setEditingViolation(null);
+                        setViolationModalOpen(true);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-indigo-200"
                 >
                     <Plus size={16} />
@@ -560,24 +565,29 @@ function App() {
                                             ) : null}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-sm text-slate-600">{formatDate(violation.lectureDeadline)}</div>
-                                            {violation.status === ViolationStatus.PENDING && (
+                                            <div className="text-sm text-slate-600">
+                                                {violation.status === ViolationStatus.COMPLETED && violation.completionDate
+                                                    ? <span className="text-green-600 font-medium">完: {formatDate(violation.completionDate)}</span>
+                                                    : formatDate(violation.lectureDeadline)
+                                                }
+                                            </div>
+                                            {violation.status !== ViolationStatus.COMPLETED && (
                                                 <div className={`text-xs font-medium mt-1 ${isOverdue ? 'text-red-500' : daysRemaining <= 5 ? 'text-orange-500' : 'text-slate-400'}`}>
                                                     {isOverdue ? `已逾期 ${Math.abs(daysRemaining)} 天` : `剩餘 ${daysRemaining} 天`}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => handleStatusToggle(violation.id)}
-                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${violation.status === ViolationStatus.COMPLETED
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
+                                                        violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
+                                                            violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
+                                                                'bg-yellow-100 text-yellow-700'
                                                     }`}
                                             >
                                                 {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}
                                                 {getStatusLabel(violation.status)}
-                                            </button>
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -625,6 +635,13 @@ function App() {
                                                         <RefreshCw size={18} />
                                                     </button>
                                                 )}
+                                                <button
+                                                    onClick={() => handleEditViolation(violation)}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                    title="編輯詳細資料"
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteViolation(violation.id)}
                                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
@@ -890,7 +907,13 @@ function App() {
     };
 
     const getStatusLabel = (status: ViolationStatus) => {
-        return status === ViolationStatus.PENDING ? '待辦理' : '已完成';
+        const map = {
+            [ViolationStatus.PENDING]: '待辦理',
+            [ViolationStatus.NOTIFIED]: '已通知',
+            [ViolationStatus.SUBMITTED]: '已提送',
+            [ViolationStatus.COMPLETED]: '已完成'
+        };
+        return map[status] || '未知';
     };
 
     if (!isAuthenticated) {
@@ -992,6 +1015,7 @@ function App() {
                 onClose={() => setViolationModalOpen(false)}
                 onSave={handleSaveViolation}
                 projects={projects}
+                initialData={editingViolation}
             />
 
             <EmailPreview

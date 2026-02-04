@@ -27,7 +27,9 @@ function handleRequest(e) {
       // 新增欄位：通知追蹤
       'firstNotifyDate', 'secondNotifyDate', 'notifyStatus', 'managerEmail',
       // 掃描檔修改歷史
-      'scanFileHistory'
+      'scanFileHistory',
+      // 2026/02/05 優化新增
+      'fineAmount', 'isMajorViolation', 'participants', 'completionDate'
     ]);
     initSheet(ss, 'Users', ['email', 'password', 'name', 'role']);
     // 通知紀錄表
@@ -67,15 +69,27 @@ function handleRequest(e) {
           deadline: data.deadline || '-'
         });
 
+        // 查找所有 admin 角色
+        var users = loadData(ss, 'Users');
+        var admins = users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.email; });
+        var ccEmails = [];
+        if (data.ccEmail) ccEmails.push(data.ccEmail);
+        ccEmails = ccEmails.concat(admins);
+
+        // 去重
+        var uniqueCc = ccEmails.filter(function (item, pos) {
+          return ccEmails.indexOf(item) == pos && item;
+        });
+
         var emailOptions = {
           to: data.to,
           subject: data.subject,
-          htmlBody: htmlBody  // 使用 HTML 格式
+          htmlBody: htmlBody
         };
 
-        // 如果有提供登入者信箱，加入副本
-        if (data.ccEmail) {
-          emailOptions.cc = data.ccEmail;
+        // 如果有副本
+        if (uniqueCc.length > 0) {
+          emailOptions.cc = uniqueCc.join(',');
         }
 
         // 如果有掃描檔，加入附件
