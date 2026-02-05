@@ -565,9 +565,10 @@ function App() {
     const renderViolationList = () => (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {/* Toolbar */}
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64">
+            {/* Toolbar */}
+            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto flex-1">
+                    <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
@@ -577,33 +578,34 @@ function App() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="relative">
-                        <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <select
-                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value as any)}
-                        >
-                            <option value="ALL">所有狀態</option>
-                            <option value={ViolationStatus.PENDING}>待辦理</option>
-                            <option value={ViolationStatus.NOTIFIED}>已通知</option>
-                            <option value={ViolationStatus.SUBMITTED}>已提送</option>
-                            <option value={ViolationStatus.COMPLETED}>已完成</option>
-                        </select>
-                    </div>
-                    {/* 主辦部門篩選 */}
-                    <div className="relative">
-                        <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <select
-                            className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
-                            value={hostTeamFilter}
-                            onChange={(e) => setHostTeamFilter(e.target.value)}
-                        >
-                            <option value="ALL">所有部門</option>
-                            {hostTeams.map(team => (
-                                <option key={team} value={team}>{team}</option>
-                            ))}
-                        </select>
+                    <div className="grid grid-cols-2 gap-3 w-full md:w-auto md:flex">
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <select
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                            >
+                                <option value="ALL">所有狀態</option>
+                                <option value={ViolationStatus.PENDING}>待辦理</option>
+                                <option value={ViolationStatus.NOTIFIED}>已通知</option>
+                                <option value={ViolationStatus.SUBMITTED}>已提送</option>
+                                <option value={ViolationStatus.COMPLETED}>已完成</option>
+                            </select>
+                        </div>
+                        <div className="relative">
+                            <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <select
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                value={hostTeamFilter}
+                                onChange={(e) => setHostTeamFilter(e.target.value)}
+                            >
+                                <option value="ALL">所有部門</option>
+                                {hostTeams.map(team => (
+                                    <option key={team} value={team}>{team}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <button
@@ -611,7 +613,7 @@ function App() {
                         setEditingViolation(null);
                         setViolationModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"
                 >
                     <Plus size={16} />
                     新增紀錄
@@ -637,9 +639,9 @@ function App() {
                                             <p className="text-xs text-slate-500">{violation.projectName}</p>
                                         </div>
                                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
-                                                violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
-                                                    violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
-                                                        'bg-yellow-100 text-yellow-700'
+                                            violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
+                                                violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-yellow-100 text-yellow-700'
                                             }`}>
                                             {getStatusLabel(violation.status)}
                                         </span>
