@@ -26,6 +26,9 @@ import {
     DollarSign,
     Menu
 } from 'lucide-react';
+import {
+    PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator, User } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
 import { getApiUrl } from './services/apiService';
@@ -399,6 +402,78 @@ function App() {
         projectHostTeamFilter === 'ALL' || p.hostTeam === projectHostTeamFilter
     );
 
+    // Charts Data Preparation
+    const renderCharts = () => {
+        // Group by Host Team
+        const teamDataMap = new Map<string, number>();
+        filteredViolations.forEach(v => {
+            const project = projects.find(p => p.name === v.projectName);
+            const team = project?.hostTeam || '未歸類';
+            teamDataMap.set(team, (teamDataMap.get(team) || 0) + 1);
+        });
+        const teamChartData = Array.from(teamDataMap, ([name, value]) => ({ name, value }));
+
+        // Group by Status
+        const statusDataMap = new Map<string, number>();
+        filteredViolations.forEach(v => {
+            const label = getStatusLabel(v.status);
+            statusDataMap.set(label, (statusDataMap.get(label) || 0) + 1);
+        });
+        const statusChartData = Array.from(statusDataMap, ([name, value]) => ({ name, value }));
+
+        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* 案件分佈 (Pie) */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">各工作隊違規佔比</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={teamChartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                    {teamChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* 狀態統計 (Bar) */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">違規案件狀態統計</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={statusChartData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip
+                                    cursor={{ fill: '#f1f5f9' }}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderDashboard = () => {
         // 找出到期前5日且未完成的違規
         const urgentViolations = violations.filter(v =>
@@ -408,19 +483,20 @@ function App() {
         );
 
         return (
-            <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-8">
+            <div className="animate-fade-in space-y-6">
+                {/* 數據卡片列 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
                     <StatCard
                         title="已結案/已辦理"
                         value={completedCount}
                         icon={CheckCircle2}
-                        colorClass="bg-emerald-500" // Darker Green
+                        colorClass="bg-emerald-500"
                     />
                     <StatCard
                         title="累積罰款金額"
                         value={`$${totalFineAmount.toLocaleString()}`}
                         icon={DollarSign}
-                        colorClass="bg-indigo-900" // Premium Dark
+                        colorClass="bg-indigo-900"
                         isCurrency
                     />
                     <StatCard
@@ -451,32 +527,38 @@ function App() {
 
                 {/* 到期提醒區域 */}
                 {urgentViolations.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <AlertTriangle className="w-6 h-6 text-amber-600" />
                             <h2 className="text-lg font-semibold text-amber-900">
                                 ⚠️ 到期前5日提醒 ({urgentViolations.length}件待處理)
                             </h2>
                         </div>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {urgentViolations.map(v => (
-                                <div key={v.id} className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-amber-100">
-                                    <div>
-                                        <p className="font-medium text-slate-800">{v.projectName}</p>
-                                        <p className="text-sm text-slate-500">{v.contractorName} | {v.description?.substring(0, 30) || '無說明'}</p>
+                                <div key={v.id} className="flex flex-col justify-between bg-white rounded-lg p-4 shadow-sm border border-amber-100 h-full">
+                                    <div className="mb-3">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="inline-block px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded font-medium">
+                                                剩 {getDaysRemaining(v.lectureDeadline)} 天
+                                            </span>
+                                            <span className="text-xs text-slate-400">{formatDate(v.lectureDeadline)}</span>
+                                        </div>
+                                        <p className="font-medium text-slate-800 line-clamp-1" title={v.projectName}>{v.projectName}</p>
+                                        <p className="text-sm text-slate-500 mt-1">{v.contractorName}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
-                                            剩餘 {getDaysRemaining(v.lectureDeadline)} 天
-                                        </span>
-                                        <p className="text-xs text-slate-500 mt-1">截止：{formatDate(v.lectureDeadline)}</p>
-                                    </div>
+                                    <p className="text-xs text-slate-400 line-clamp-2 bg-slate-50 p-2 rounded">
+                                        {v.description || '無說明'}
+                                    </p>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
-            </>
+
+                {/* 圖表區域 */}
+                {renderCharts()}
+            </div>
         );
     };
 
@@ -536,8 +618,81 @@ function App() {
                 </button>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Mobile Card View */}
+            <div className="md:hidden">
+                {filteredViolations.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">
+                        {isLoading ? '載入中...' : '查無資料'}
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {filteredViolations.map((violation) => {
+                            const daysRemaining = getDaysRemaining(violation.lectureDeadline);
+                            const isOverdue = daysRemaining < 0 && violation.status === ViolationStatus.PENDING;
+                            return (
+                                <div key={violation.id} className="p-4 active:bg-slate-50 transition-colors">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">{violation.contractorName}</h3>
+                                            <p className="text-xs text-slate-500">{violation.projectName}</p>
+                                        </div>
+                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
+                                                violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
+                                                    violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
+                                                        'bg-yellow-100 text-yellow-700'
+                                            }`}>
+                                            {getStatusLabel(violation.status)}
+                                        </span>
+                                    </div>
+
+                                    <p className="text-sm text-slate-700 mb-3 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-100">
+                                        {violation.description}
+                                    </p>
+
+                                    <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                                        <span>期限：{formatDate(violation.lectureDeadline)}</span>
+                                        {violation.status !== ViolationStatus.COMPLETED && (
+                                            <span className={`${isOverdue ? 'text-red-600 font-bold' : daysRemaining <= 5 ? 'text-orange-600 font-bold' : ''}`}>
+                                                {isOverdue ? `(已逾期 ${Math.abs(daysRemaining)} 天)` : `(剩餘 ${daysRemaining} 天)`}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                                        <button
+                                            onClick={() => openEmailModal(violation)}
+                                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg"
+                                        >
+                                            <Mail size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleGenerateDocument(violation)}
+                                            className={`p-2 rounded-lg ${violation.documentUrl ? 'text-green-600 bg-green-50' : 'text-slate-500 hover:bg-slate-100'}`}
+                                        >
+                                            <FileText size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : handleUploadScanFile(violation, false)}
+                                            className={`p-2 rounded-lg ${violation.scanFileUrl ? 'text-purple-600 bg-purple-50' : 'text-slate-500 hover:bg-slate-100'}`}
+                                        >
+                                            <Upload size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleEditViolation(violation)}
+                                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg"
+                                        >
+                                            <Edit size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
