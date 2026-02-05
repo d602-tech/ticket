@@ -622,7 +622,7 @@ function App() {
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden">
+            <div className="lg:hidden">
                 {filteredViolations.length === 0 ? (
                     <div className="p-8 text-center text-slate-400">
                         {isLoading ? '載入中...' : '查無資料'}
@@ -695,10 +695,10 @@ function App() {
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             <th className="px-6 py-4">承攬商 / 工程</th>
                             <th className="px-6 py-4">違規事項</th>
                             <th className="px-6 py-4">講習期限</th>
