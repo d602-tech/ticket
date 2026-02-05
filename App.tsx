@@ -23,7 +23,8 @@ import {
     FileText,
     Upload,
     RefreshCw,
-    DollarSign
+    DollarSign,
+    Menu
 } from 'lucide-react';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator, User } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
@@ -42,6 +43,7 @@ function App() {
     const [violations, setViolations] = useState<Violation[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Sidebar State
 
     // User Management State (Admin Only)
     const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
@@ -349,7 +351,7 @@ function App() {
 
     // Derived State
     // 取得所有主辦部門（去重）
-    const hostTeams = ['土木工作隊', '機械工作隊', '電氣工作隊', '建築工作隊', '環安工作隊', '綜合工作隊'];
+    const hostTeams = ['土木工作隊', '建築工作隊', '機械工作隊', '電氣工作隊', '中部工作隊', '南部工作隊'];
 
     const filteredViolations = violations.filter(v => {
         const matchesSearch = v.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -380,9 +382,12 @@ function App() {
     const getHostTeamColor = (team: string | undefined) => {
         const colors: Record<string, { bg: string; text: string; border: string }> = {
             '土木工作隊': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+            '建築工作隊': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
             '機械工作隊': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
             '電氣工作隊': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
-            '建築工作隊': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+            '中部工作隊': { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
+            '南部工作隊': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+            // Keep others just in case
             '環安工作隊': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
             '綜合工作隊': { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' }
         };
@@ -781,11 +786,11 @@ function App() {
             {/* 工具列：篩選和新增 */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 {/* 主辦工作隊篩選器 - 6 Buttons */}
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex overflow-x-auto pb-2 md:pb-0 items-center gap-2 w-full md:w-auto md:flex-wrap no-scrollbar">
                     <button
                         onClick={() => setProjectHostTeamFilter('ALL')}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === 'ALL'
-                            ? 'bg-slate-800 text-white shadow-md'
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === 'ALL'
+                            ? 'bg-slate-900 text-white shadow-md'
                             : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                             }`}
                     >
@@ -795,8 +800,8 @@ function App() {
                         <button
                             key={team}
                             onClick={() => setProjectHostTeamFilter(team)}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === team
-                                ? 'bg-slate-800 text-white shadow-md'
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === team
+                                ? 'bg-slate-900 text-white shadow-md'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
@@ -1044,34 +1049,48 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen flex bg-slate-50 text-slate-800 font-sans">
+        <div className="min-h-screen flex bg-slate-50 text-slate-800 font-sans relative">
+
+            {/* Mobile Sidebar Overlay */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-20 md:hidden glass"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
 
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full shadow-xl z-20 transition-all">
+            <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-xl transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6 border-b border-slate-800 flex items-center gap-3">
                     <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
                         SG
                     </div>
                     <span className="text-white font-bold text-lg tracking-tight">違規講習登錄表</span>
+                    <button
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="ml-auto md:hidden text-slate-400 hover:text-white"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
                     <button
-                        onClick={() => setView('DASHBOARD')}
+                        onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
                     >
                         <LayoutDashboard size={20} />
                         儀表板
                     </button>
                     <button
-                        onClick={() => setView('VIOLATIONS')}
+                        onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
                     >
                         <FileWarning size={20} />
                         違規紀錄
                     </button>
                     <button
-                        onClick={() => setView('PROJECTS')}
+                        onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
                     >
                         <Briefcase size={20} />
@@ -1079,7 +1098,7 @@ function App() {
                     </button>
                     {currentUserRole === 'admin' && (
                         <button
-                            onClick={() => setView('ADMIN')}
+                            onClick={() => { setView('ADMIN'); setIsSidebarOpen(false); }}
                             className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
                         >
                             <Users size={20} />
@@ -1093,12 +1112,12 @@ function App() {
                         {isLoading ? (
                             <div className="flex items-center gap-2 text-indigo-400 text-sm px-2 animate-pulse">
                                 <Loader2 size={16} className="animate-spin" />
-                                <span>資料同步中...</span>
+                                <span className="hidden sm:inline">資料同步中...</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 text-emerald-500 text-sm px-2">
                                 <Database size={16} />
-                                <span>資料庫已連線</span>
+                                <span className="hidden sm:inline">資料庫已連線</span>
                             </div>
                         )}
                     </div>
@@ -1113,7 +1132,7 @@ function App() {
             </aside>
 
             {/* Main Content */}
-            <main className="ml-64 flex-1 p-8 overflow-y-auto relative">
+            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full">
                 {isLoading && (
                     <div className="absolute top-4 right-8 z-50 bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-pulse">
                         <Loader2 size={12} className="animate-spin" />
@@ -1121,18 +1140,26 @@ function App() {
                     </div>
                 )}
 
-                <header className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
-                            {view === 'DASHBOARD' && '系統總覽'}
-                            {view === 'VIOLATIONS' && '違規管理紀錄'}
-                            {view === 'PROJECTS' && '工程專案管理'}
-                            {view === 'ADMIN' && '系統管理'}
-                        </h1>
-                        <p className="text-slate-500 mt-1 text-sm">管理違規事項並確保符合工安規範。</p>
+                <header className="flex justify-between items-center mb-6 md:mb-8">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg md:hidden"
+                        >
+                            <Menu size={24} />
+                        </button>
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                                {view === 'DASHBOARD' && '系統總覽'}
+                                {view === 'VIOLATIONS' && '違規管理紀錄'}
+                                {view === 'PROJECTS' && '工程專案管理'}
+                                {view === 'ADMIN' && '系統管理'}
+                            </h1>
+                            <p className="text-slate-500 mt-1 text-sm hidden md:block">管理違規事項並確保符合工安規範。</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 font-bold">
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs md:text-base">
                             AD
                         </div>
                     </div>
