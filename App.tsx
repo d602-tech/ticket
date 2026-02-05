@@ -24,7 +24,8 @@ import {
     Upload,
     RefreshCw,
     DollarSign,
-    Menu
+    Menu,
+    Edit
 } from 'lucide-react';
 import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
