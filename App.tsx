@@ -622,7 +622,7 @@ function App() {
             </div>
 
             {/* Mobile Card View */}
-            <div className="lg:hidden">
+            <div className="xl:hidden">
                 {filteredViolations.length === 0 ? (
                     <div className="p-8 text-center text-slate-400">
                         {isLoading ? '載入中...' : '查無資料'}
@@ -635,11 +635,11 @@ function App() {
                             return (
                                 <div key={violation.id} className="p-4 active:bg-slate-50 transition-colors">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h3 className="font-bold text-slate-900">{violation.contractorName}</h3>
-                                            <p className="text-xs text-slate-500">{violation.projectName}</p>
+                                        <div className="flex-1 mr-2">
+                                            <h3 className="font-bold text-slate-900 mb-1 leading-snug">{violation.contractorName}</h3>
+                                            <p className="text-xs text-slate-500 leading-normal">{violation.projectName}</p>
                                         </div>
-                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
+                                        <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
                                             violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
                                                 violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
                                                     'bg-yellow-100 text-yellow-700'
@@ -695,7 +695,7 @@ function App() {
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden lg:block overflow-x-auto">
+            <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full min-w-[1000px] text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
