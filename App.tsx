@@ -696,7 +696,7 @@ function App() {
 
             {/* Desktop Table */}
             <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full min-w-[1000px] text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             <th className="px-6 py-4">承攬商 / 工程</th>
