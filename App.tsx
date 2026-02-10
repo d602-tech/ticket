@@ -162,7 +162,7 @@ function App() {
                             <p>承攬商「<b>${newViolation.contractorName}</b>」於工程「<b>${project.name}</b>」之違規事項已修正並結案。</p>
                             <ul>
                                 <li><b>違規內容：</b>${newViolation.description}</li>
-                                <li><b>完成日期：</b>${formatDate(new Date())}</li>
+                                <li><b>完成日期：</b>${formatDate(new Date().toISOString())}</li>
                             </ul>
                             <p>系統自動發送，請勿直接回覆。</p>
                         `,
