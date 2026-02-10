@@ -145,6 +145,36 @@ function App() {
             // 同步後端
             const response = await syncData(undefined, updatedList, uploadPayload);
 
+            // 檢查是否剛完成結案，若是則通知主辦人員
+            const isCompletedNow = newViolation.status === ViolationStatus.COMPLETED;
+            const wasCompletedBefore = exists && exists.status === ViolationStatus.COMPLETED;
+
+            if (isCompletedNow && !wasCompletedBefore && project && project.coordinatorEmail) {
+                // 不阻擋 UI 更新，背景發送
+                fetch(getApiUrl()!, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'sendEmail',
+                        to: project.coordinatorEmail,
+                        subject: `[案件完成通知] ${project.name} - ${newViolation.contractorName}`,
+                        body: `
+                            <p>承辦人員您好，</p>
+                            <p>承攬商「<b>${newViolation.contractorName}</b>」於工程「<b>${project.name}</b>」之違規事項已修正並結案。</p>
+                            <ul>
+                                <li><b>違規內容：</b>${newViolation.description}</li>
+                                <li><b>完成日期：</b>${formatDate(new Date())}</li>
+                            </ul>
+                            <p>系統自動發送，請勿直接回覆。</p>
+                        `,
+                        violationId: newViolation.id
+                    })
+                }).then(res => res.json()).then(res => {
+                    if (res.success) {
+                        console.log('結案通知已發送');
+                    }
+                }).catch(err => console.error('通知發送失敗', err));
+            }
+
             setViolations(response.violations);
             setEditingViolation(null); // Clear editing state
         } catch (e) {
@@ -486,7 +516,7 @@ function App() {
         return (
             <div className="animate-fade-in space-y-6">
                 {/* 數據卡片列 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
                     <StatCard
                         title="已結案/已辦理"
                         value={completedCount}
