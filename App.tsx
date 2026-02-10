@@ -452,13 +452,13 @@ function App() {
         });
         const statusChartData = Array.from(statusDataMap, ([name, value]) => ({ name, value }));
 
-        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+        const COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981'];
 
         return (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* 案件分佈 (Pie) */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">各工作隊違規佔比</h3>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80 hover:shadow-md transition-shadow">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">各工作隊違規佔比</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -484,8 +484,8 @@ function App() {
                 </div>
 
                 {/* 狀態統計 (Bar) */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">違規案件狀態統計</h3>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80 hover:shadow-md transition-shadow">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">違規案件狀態統計</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={statusChartData}>
@@ -516,7 +516,7 @@ function App() {
         return (
             <div className="animate-fade-in space-y-6">
                 {/* 數據卡片列 */}
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                     <StatCard
                         title="已結案/已辦理"
                         value={completedCount}
@@ -558,27 +558,29 @@ function App() {
 
                 {/* 到期提醒區域 */}
                 {urgentViolations.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-6">
                         <div className="flex items-center gap-3 mb-4">
-                            <AlertTriangle className="w-6 h-6 text-amber-600" />
-                            <h2 className="text-lg font-semibold text-amber-900">
-                                ⚠️ 到期前5日提醒 ({urgentViolations.length}件待處理)
+                            <div className="p-2 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20">
+                                <AlertTriangle className="w-5 h-5 text-white" />
+                            </div>
+                            <h2 className="text-base font-bold text-amber-900">
+                                到期前5日提醒 <span className="text-amber-600 font-normal">({urgentViolations.length}件待處理)</span>
                             </h2>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {urgentViolations.map(v => (
-                                <div key={v.id} className="flex flex-col justify-between bg-white rounded-lg p-4 shadow-sm border border-amber-100 h-full">
+                                <div key={v.id} className="flex flex-col justify-between bg-white rounded-xl p-4 shadow-sm border border-amber-100/60 h-full hover:shadow-md transition-shadow">
                                     <div className="mb-3">
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className="inline-block px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                                                剩 {getDaysRemaining(v.lectureDeadline)} 天
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">
+                                                <Clock size={12} /> 剩 {getDaysRemaining(v.lectureDeadline)} 天
                                             </span>
                                             <span className="text-xs text-slate-400">{formatDate(v.lectureDeadline)}</span>
                                         </div>
-                                        <p className="font-medium text-slate-800 line-clamp-1" title={v.projectName}>{v.projectName}</p>
-                                        <p className="text-sm text-slate-500 mt-1">{v.contractorName}</p>
+                                        <p className="font-semibold text-slate-800 line-clamp-1 mt-1" title={v.projectName}>{v.projectName}</p>
+                                        <p className="text-sm text-slate-500 mt-0.5">{v.contractorName}</p>
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-2 bg-slate-50 p-2 rounded">
+                                    <p className="text-xs text-slate-400 line-clamp-2 bg-slate-50/80 p-2 rounded-lg">
                                         {v.description || '無說明'}
                                     </p>
                                 </div>
@@ -594,7 +596,7 @@ function App() {
     };
 
     const renderViolationList = () => (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             {/* Toolbar */}
             {/* Toolbar */}
             <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -663,7 +665,7 @@ function App() {
                             const daysRemaining = getDaysRemaining(violation.lectureDeadline);
                             const isOverdue = daysRemaining < 0 && violation.status === ViolationStatus.PENDING;
                             return (
-                                <div key={violation.id} className="p-4 active:bg-slate-50 transition-colors">
+                                <div key={violation.id} className="p-4 hover:bg-slate-50/50 active:bg-slate-100 transition-colors">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1 mr-2">
                                             <h3 className="font-bold text-slate-900 mb-1 leading-snug">{violation.contractorName}</h3>
@@ -678,7 +680,7 @@ function App() {
                                         </span>
                                     </div>
 
-                                    <p className="text-sm text-slate-700 mb-3 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-100">
+                                    <p className="text-sm text-slate-600 mb-3 line-clamp-2 bg-slate-50/80 p-2.5 rounded-lg">
                                         {violation.description}
                                     </p>
 
@@ -691,7 +693,7 @@ function App() {
                                         )}
                                     </div>
 
-                                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                                    <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-3">
                                         <button
                                             onClick={() => openEmailModal(violation)}
                                             className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg"
@@ -728,7 +730,7 @@ function App() {
             <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full min-w-[1000px] text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             <th className="px-6 py-4">承攬商 / 工程</th>
                             <th className="px-6 py-4">違規事項</th>
                             <th className="px-6 py-4">講習期限</th>
@@ -1237,7 +1239,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen flex bg-slate-50 text-slate-800 font-sans relative">
+        <div className="min-h-screen flex bg-slate-100 text-slate-800 font-sans relative">
 
             {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
@@ -1248,9 +1250,9 @@ function App() {
             )}
 
             {/* Sidebar */}
-            <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-xl transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
+            <aside className={`w-64 bg-gradient-to-b from-slate-900 to-slate-950 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-2xl transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-6 border-b border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30 text-sm">
                         SG
                     </div>
                     <span className="text-white font-bold text-lg tracking-tight">違規講習登錄表</span>
@@ -1265,21 +1267,21 @@ function App() {
                 <nav className="flex-1 p-4 space-y-2">
                     <button
                         onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                     >
                         <LayoutDashboard size={20} />
                         儀表板
                     </button>
                     <button
                         onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                     >
                         <FileWarning size={20} />
                         違規紀錄
                     </button>
                     <button
                         onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                     >
                         <Briefcase size={20} />
                         工程管理
@@ -1287,7 +1289,7 @@ function App() {
                     {currentUserRole === 'admin' && (
                         <button
                             onClick={() => { setView('ADMIN'); setIsSidebarOpen(false); }}
-                            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800'}`}
+                            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'ADMIN' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                         >
                             <Users size={20} />
                             帳號管理
@@ -1295,7 +1297,7 @@ function App() {
                     )}
                 </nav>
 
-                <div className="p-4 border-t border-slate-800">
+                <div className="p-4 border-t border-white/5">
                     <div className="mb-4">
                         {isLoading ? (
                             <div className="flex items-center gap-2 text-indigo-400 text-sm px-2 animate-pulse">
@@ -1320,7 +1322,7 @@ function App() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full">
+            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full bg-slate-50/50">
                 {isLoading && (
                     <div className="absolute top-4 right-8 z-50 bg-indigo-600 text-white text-xs px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-pulse">
                         <Loader2 size={12} className="animate-spin" />
@@ -1337,17 +1339,17 @@ function App() {
                             <Menu size={24} />
                         </button>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
                                 {view === 'DASHBOARD' && '系統總覽'}
                                 {view === 'VIOLATIONS' && '違規管理紀錄'}
                                 {view === 'PROJECTS' && '工程專案管理'}
                                 {view === 'ADMIN' && '系統管理'}
                             </h1>
-                            <p className="text-slate-500 mt-1 text-sm hidden md:block">管理違規事項並確保符合工安規範。</p>
+                            <p className="text-slate-400 mt-0.5 text-sm hidden md:block">管理違規事項並確保符合工安規範</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs md:text-base">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-xs md:text-sm shadow-md shadow-indigo-500/20">
                             AD
                         </div>
                     </div>
