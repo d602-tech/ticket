@@ -39,6 +39,7 @@ import { ViolationModal } from './components/ViolationModal';
 import { EmailPreview } from './components/EmailPreview';
 import { LoginScreen } from './components/LoginScreen';
 import { LoadingModal } from './components/LoadingModal';
+import { FineStats } from './components/FineStats';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -1280,6 +1281,13 @@ function App() {
                         違規紀錄
                     </button>
                     <button
+                        onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
+                    >
+                        <DollarSign size={20} />
+                        罰款統計暨違規講習
+                    </button>
+                    <button
                         onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                     >
@@ -1357,6 +1365,7 @@ function App() {
 
                 {view === 'DASHBOARD' && renderDashboard()}
                 {view === 'VIOLATIONS' && renderViolationList()}
+                {view === 'FINE_STATS' && <FineStats projects={projects} />}
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'ADMIN' && renderUserManagement()}
             </main>
