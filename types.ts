@@ -94,7 +94,9 @@ export interface Project {
 }
 
 export interface User {
-  // ... existing code ...
+  email: string;
+  name: string;
+  role: string;
   password?: string;
 }
 

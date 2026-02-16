@@ -1,4 +1,4 @@
-import { Violation, Project, Fine, FineList, Section } from '../types';
+import { Violation, Project, Fine, FineList, Section, User } from '../types';
 import { callGasApi } from './apiService';
 
 export const COMMON_VIOLATIONS = [
@@ -27,7 +27,8 @@ export const fetchInitialData = async (): Promise<{
     violations: Violation[],
     fines: Fine[],
     fineList: FineList[],
-    sections: Section[]
+    sections: Section[],
+    users: User[]
 }> => {
     try {
         const data = await callGasApi({});
@@ -36,7 +37,8 @@ export const fetchInitialData = async (): Promise<{
             violations: data.violations || MOCK_VIOLATIONS,
             fines: data.fines || MOCK_FINES,
             fineList: data.fineList || MOCK_FINE_LIST,
-            sections: data.sections || MOCK_SECTIONS
+            sections: data.sections || MOCK_SECTIONS,
+            users: data.users || []
         };
     } catch (error) {
         console.error("Failed to fetch data from GAS:", error);
@@ -55,20 +57,23 @@ export const syncData = async (
         violationDate?: string
     },
     fines?: Fine[],
-    sections?: Section[]
+    sections?: Section[],
+    users?: User[]
 ): Promise<{
     projects: Project[],
     violations: Violation[],
     fines: Fine[],
     fineList: FineList[],
-    sections: Section[]
+    sections: Section[],
+    users: User[]
 }> => {
     try {
         const payload: any = { action: 'sync' };
         if (projects) payload.projects = projects;
         if (violations) payload.violations = violations;
-        if (fines) payload.fines = fines; // Support saving fines
-        if (sections) payload.sections = sections; // Support saving sections
+        if (fines) payload.fines = fines;
+        if (sections) payload.sections = sections;
+        if (users) payload.users = users;
         // 如果有檔案需要上傳
         if (fileUpload) {
             payload.fileUpload = fileUpload;
@@ -92,7 +97,8 @@ export const syncData = async (
             violations: response.violations || [],
             fines: response.fines || [],
             fineList: response.fineList || [],
-            sections: response.sections || []
+            sections: response.sections || [],
+            users: response.users || []
         };
     } catch (error) {
         console.error("Sync failed:", error);

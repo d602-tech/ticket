@@ -8,17 +8,13 @@ export const addDays = (dateStr: string, days: number): string => {
   return result.toISOString().split('T')[0];
 };
 
-/**
- * Calculates days remaining until deadline.
- * Negative number means overdue.
- */
 export const getDaysRemaining = (deadlineStr: string): number => {
   const deadline = new Date(deadlineStr);
   const today = new Date();
   // Reset time to midnight for accurate day calculation
   today.setHours(0, 0, 0, 0);
   deadline.setHours(0, 0, 0, 0);
-  
+
   const diffTime = deadline.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };

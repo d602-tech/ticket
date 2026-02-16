@@ -6,7 +6,7 @@ import {
 import { Fine, Project, FineList, Section, Violation, ViolationStatus } from '../types';
 import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle } from 'lucide-react';
 import { syncData } from '../services/storageService';
-import { formatDate } from '../utils';
+import { formatDate, addDays } from '../utils';
 import * as XLSX from 'xlsx';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
@@ -31,7 +31,7 @@ interface TicketGroup {
 }
 
 export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation }: FineStatsProps) {
-    const [activeTab, setActiveTab] = useState<'stats' | 'manage' | 'personnel'>('stats');
+    const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -302,7 +302,8 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 contractorName: currentTicket.contractor,
                 projectName: currentTicket.projectName,
                 violationDate: currentTicket.date,
-                lectureDeadline: '', // To be filled manually later or calculate +X days?
+                lectureDeadline: addDays(currentTicket.date, 32),
+                deadline: addDays(currentTicket.date, 3), // Deadline for response? Added for consistency if needed or just use lectureDeadline
                 description: `罰款單號: ${currentTicket.ticketNumber} - 總金額: ${calculatedTicketTotal.toLocaleString()}元。` +
                     ticketItems.map(i => `\n- ${i.violationItem}`).join(''),
                 status: ViolationStatus.PENDING,
@@ -897,95 +898,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         );
     };
 
-    const renderPersonnel = () => {
-        return (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-500">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700">開單人員管理</h3>
-                    <button
-                        onClick={() => { setCurrentSection({}); setIsEditingSection(true); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                    >
-                        <Plus size={16} /> 新增人員
-                    </button>
-                </div>
 
-                {isEditingSection && (
-                    <div className="p-4 bg-slate-50 border-b border-slate-200">
-                        <h4 className="font-bold text-slate-700 mb-2">{currentSection.name ? '編輯人員' : '新增人員'}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">姓名 *</label>
-                                <input type="text" className="w-full p-2 border rounded"
-                                    value={currentSection.name || ''}
-                                    onChange={e => setCurrentSection({ ...currentSection, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊 *</label>
-                                <input type="text" className="w-full p-2 border rounded"
-                                    value={currentSection.hostTeam || ''}
-                                    onChange={e => setCurrentSection({ ...currentSection, hostTeam: e.target.value })}
-                                    list="team-suggestions"
-                                />
-                                <datalist id="team-suggestions">
-                                    {Array.from(new Set(sections.map(s => s.hostTeam))).map(t => <option key={t} value={t} />)}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">職稱</label>
-                                <input type="text" className="w-full p-2 border rounded"
-                                    value={currentSection.title || ''}
-                                    onChange={e => setCurrentSection({ ...currentSection, title: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                                <input type="email" className="w-full p-2 border rounded"
-                                    value={currentSection.email || ''}
-                                    onChange={e => setCurrentSection({ ...currentSection, email: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-4 flex gap-2">
-                            <button onClick={handleSaveSection} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
-                            <button onClick={() => setIsEditingSection(false)} className="px-4 py-2 bg-slate-300 text-slate-700 rounded hover:bg-slate-400 text-sm">取消</button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-medium">
-                            <tr>
-                                <th className="px-4 py-3">主辦工作隊</th>
-                                <th className="px-4 py-3">姓名</th>
-                                <th className="px-4 py-3">職稱</th>
-                                <th className="px-4 py-3">Email</th>
-                                <th className="px-4 py-3 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {sections.map((s, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50">
-                                    <td className="px-4 py-3">{s.hostTeam}</td>
-                                    <td className="px-4 py-3 font-bold text-slate-700">{s.name}</td>
-                                    <td className="px-4 py-3">{s.title}</td>
-                                    <td className="px-4 py-3 text-slate-500">{s.email}</td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => { setCurrentSection(s); setIsEditingSection(true); }} className="p-1 text-slate-400 hover:text-indigo-600"><Edit2 size={16} /></button>
-                                            <button onClick={() => handleDeleteSection(s)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className="space-y-6">
@@ -1004,18 +917,11 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     >
                         資料管理
                     </button>
-                    <button
-                        onClick={() => setActiveTab('personnel')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'personnel' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                    >
-                        人員管理
-                    </button>
                 </div>
             </div>
 
             {activeTab === 'stats' && renderStats()}
             {activeTab === 'manage' && renderManage()}
-            {activeTab === 'personnel' && renderPersonnel()}
 
             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-sm text-indigo-700 flex items-start gap-2">
                 <div className="mt-0.5"><Filter size={16} /></div>

@@ -13,6 +13,10 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
     const [currentSection, setCurrentSection] = useState<Partial<Section>>({});
     const [isSaving, setIsSaving] = useState(false);
 
+    // Dropdown options
+    const titles = ['經理', '課長', '站長', '專員', '技術員', '處長', '副處長'];
+    const hostTeams = ['土木工作隊', '機械工作隊', '建築工作隊', '電氣工作隊', '中部工作隊', '南部工作隊', '工業安全衛生組', '處長室', '工務組', '檢驗組', '規劃組'];
+
     const handleSaveSection = async () => {
         if (!currentSection.name || !currentSection.hostTeam) {
             alert('請填寫姓名與主辦工作隊');
@@ -97,23 +101,25 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">主辦工作隊 <span className="text-red-500">*</span></label>
-                                <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                <select
+                                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                     value={currentSection.hostTeam || ''}
                                     onChange={e => setCurrentSection({ ...currentSection, hostTeam: e.target.value })}
-                                    list="team-suggestions"
-                                    placeholder="選擇工作隊"
-                                />
-                                <datalist id="team-suggestions">
-                                    {Array.from(new Set(sections.map(s => s.hostTeam))).map(t => <option key={t} value={t} />)}
-                                </datalist>
+                                >
+                                    <option value="">請選擇工作隊...</option>
+                                    {hostTeams.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">職稱</label>
-                                <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                <select className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                                     value={currentSection.title || ''}
                                     onChange={e => setCurrentSection({ ...currentSection, title: e.target.value })}
-                                    placeholder="如: 工程師"
-                                />
+                                >
+                                    <option value="">請選擇職稱</option>
+                                    {titles.map(t => <option key={t} value={t}>{t}</option>)}
+                                    {!titles.includes(currentSection.title || '') && currentSection.title && <option value={currentSection.title}>{currentSection.title}</option>}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>

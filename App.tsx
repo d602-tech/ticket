@@ -30,6 +30,7 @@ import {
 import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import * as XLSX from 'xlsx';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator, User, Fine, FineList, Section } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
 import { getApiUrl } from './services/apiService';
@@ -56,6 +57,7 @@ function App() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Sidebar State
 
     // User Management State (Admin Only)
+    const [users, setUsers] = useState<User[]>([]);
     const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
     const [currentUserRole, setCurrentUserRole] = useState<string>(''); // Current logged in user role
 
@@ -96,6 +98,7 @@ function App() {
             setFines(data.fines);
             setFineList(data.fineList);
             setSections(data.sections);
+            setUsers(data.users);
         } catch (e) {
             alert('連線失敗，請檢查 API URL 是否正確。');
         } finally {
@@ -514,6 +517,30 @@ function App() {
         );
     };
 
+    // Dashboard Stats Logic
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+
+    // Monthly Fines
+    const monthlyFines = fines.filter(f => {
+        const d = new Date(f.date);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }).reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
+
+    // Total Fine Count (Items)
+    const totalFineCount = fines.length;
+
+    // Contractor Chart Data
+    const contractorData = Object.entries(fines.reduce((acc, curr) => {
+        const name = curr.contractor || '未分類';
+        acc[name] = (acc[name] || 0) + (Number(curr.subtotal) || 0);
+        return acc;
+    }, {} as Record<string, number>))
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value); // Sort by amount descending
+
+    const COLORS_CONTRACTOR = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
+
     const renderDashboard = () => {
         // 找出到期前5日且未完成的違規
         const urgentViolations = violations.filter(v =>
@@ -540,22 +567,23 @@ function App() {
                         isCurrency
                     />
                     <StatCard
+                        title="本月罰款金額"
+                        value={`$${monthlyFines.toLocaleString()}`}
+                        icon={DollarSign}
+                        colorClass="bg-blue-600"
+                        isCurrency
+                    />
+                    <StatCard
+                        title="總罰款筆數"
+                        value={totalFineCount}
+                        icon={FileText}
+                        colorClass="bg-slate-600"
+                    />
+                    <StatCard
                         title="未結案違規"
                         value={pendingCount}
                         icon={AlertTriangle}
                         colorClass="bg-amber-500"
-                    />
-                    <StatCard
-                        title="5天內到期"
-                        value={urgentCount}
-                        icon={Clock}
-                        colorClass="bg-yellow-500"
-                    />
-                    <StatCard
-                        title="2天內到期"
-                        value={within2DaysCount}
-                        icon={AlertTriangle}
-                        colorClass="bg-orange-600"
                     />
                     <StatCard
                         title="已逾期案件"
@@ -600,6 +628,34 @@ function App() {
 
                 {/* 圖表區域 */}
                 {renderCharts()}
+
+                {/* 承攬商罰款佔比圖表 */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80 hover:shadow-md transition-shadow mb-8">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">各承攬商罰款金額佔比</h3>
+                    <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={contractorData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={80}
+                                    outerRadius={110}
+                                    fill="#8884d8"
+                                    paddingAngle={2}
+                                    dataKey="value"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                    {contractorData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS_CONTRACTOR[index % COLORS_CONTRACTOR.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
@@ -957,69 +1013,212 @@ function App() {
         }
     };
 
+    const handleDeleteUser = async (user: User) => {
+        if (!confirm(`確定要刪除使用者 ${user.name} (${user.email})?`)) return;
+        setIsLoading(true);
+        try {
+            const updatedUsers = users.filter(u => u.email !== user.email);
+            // Sync updated users list
+            const result = await syncData(undefined, undefined, undefined, undefined, undefined, updatedUsers);
+            setUsers(result.users);
+            alert('使用者已刪除');
+        } catch (e) {
+            alert('刪除失敗');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const renderUserManagement = () => (
-        <div className="animate-fade-in max-w-2xl mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-                <h2 className="text-xl font-bold text-slate-800">帳號管理</h2>
-                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-medium">
-                    管理員專用
-                </span>
+        <div className="animate-fade-in max-w-6xl mx-auto space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">帳號管理</h2>
+                    <p className="text-slate-500 text-sm mt-1">管理系統使用者權限與帳號資訊</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-medium border border-amber-200">
+                        管理員專用
+                    </span>
+                </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">新增使用者</h3>
-                <form onSubmit={handleAddUser} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
-                        <input
-                            type="text"
-                            required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
-                            value={newUserForm.name}
-                            onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
-                        />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* 列表區域 (佔 2/3) */}
+                <div className="md:col-span-2 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {users.map((user, idx) => (
+                            <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow group">
+                                <div>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${user.role === 'admin' ? 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
+                                            {user.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        {user.role === 'admin' && (
+                                            <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-medium border border-indigo-100">
+                                                Admin
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{user.name}</h3>
+                                    <p className="text-slate-500 text-sm font-mono break-all">{user.email}</p>
+
+                                    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
+                                        <span>Role: {user.role}</span>
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => handleDeleteUser(user)}
+                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="刪除帳號"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Email (帳號)</label>
-                        <input
-                            type="email"
-                            required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
-                            value={newUserForm.email}
-                            onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                        />
+                    {users.length === 0 && (
+                        <div className="text-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400">
+                            尚無使用者資料 (或無法讀取)
+                        </div>
+                    )}
+                </div>
+
+                {/* 新增表單 (佔 1/3) */}
+                <div>
+                    <div className="bg-white rounded-xl shadow-lg shadow-indigo-100 border border-indigo-50 p-6 sticky top-8">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-indigo-50">
+                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                <Plus size={20} />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">新增使用者</h3>
+                        </div>
+
+                        <form onSubmit={handleAddUser} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">姓名</label>
+                                <div className="relative">
+                                    <Users className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                        value={newUserForm.name}
+                                        onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                                        placeholder="輸入使用者姓名"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Email (帳號)</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="email"
+                                        required
+                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                        value={newUserForm.email}
+                                        onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                                        placeholder="user@example.com"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">密碼</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3 w-4 h-4 text-slate-400 font-mono text-xs">***</div>
+                                    <input
+                                        type="text" // Visible for admin creation
+                                        required
+                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                        value={newUserForm.password}
+                                        onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                                        placeholder="設定預設密碼"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">權限角色</label>
+                                <div className="relative">
+                                    <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <select
+                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white appearance-none"
+                                        value={newUserForm.role}
+                                        onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                                    >
+                                        <option value="user">一般使用者 (User)</option>
+                                        <option value="admin">系統管理員 (Admin)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all mt-4 shadow-lg shadow-slate-200 hover:shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <Plus size={18} />
+                                新增帳號
+                            </button>
+                        </form>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">密碼</label>
-                        <input
-                            type="text" // Visible for admin creation
-                            required
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500"
-                            value={newUserForm.password}
-                            onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">權限角色</label>
-                        <select
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-slate-500 bg-white"
-                            value={newUserForm.role}
-                            onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
-                        >
-                            <option value="user">一般使用者 (User)</option>
-                            <option value="admin">系統管理員 (Admin)</option>
-                        </select>
-                    </div>
-                    <button
-                        type="submit"
-                        className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-colors mt-4 shadow-lg shadow-slate-200"
-                    >
-                        新增帳號
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     );
+
+    // Project Export/Import
+    const handleExportProjects = () => {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(projects);
+        XLSX.utils.book_append_sheet(wb, ws, "Projects");
+        XLSX.writeFile(wb, "Projects_Export.xlsx");
+    };
+
+    const handleImportProjects = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws) as Project[];
+
+            if (confirm(`即將匯入 ${data.length} 筆工程資料，確定?`)) {
+                setIsLoading(true);
+                try {
+                    // Merge logic: Update if ID exists, else add.
+                    // Actually, let's just replace/append based on ID if present, or generate new ID?
+                    // Simple approach: Concat and let backend handle or user handle? 
+                    // Better: Upsert.
+                    let updatedProjects = [...projects];
+                    data.forEach(newP => {
+                        const idx = updatedProjects.findIndex(p => p.id === newP.id || p.name === newP.name);
+                        if (idx >= 0) {
+                            updatedProjects[idx] = { ...updatedProjects[idx], ...newP };
+                        } else {
+                            if (!newP.id) newP.id = generateId();
+                            updatedProjects.push(newP);
+                        }
+                    });
+
+                    setProjects(updatedProjects);
+                    const response = await syncData(updatedProjects, undefined);
+                    setProjects(response.projects);
+                    alert('匯入成功');
+                } catch (err) {
+                    alert('匯入失敗');
+                    console.error(err);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
 
     const renderProjects = () => (
         <div className="space-y-6">
@@ -1050,16 +1249,25 @@ function App() {
                     ))}
                 </div>
 
-                <button
-                    onClick={() => {
-                        setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' });
-                        setProjectFormOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300 ml-auto"
-                >
-                    <Plus size={16} />
-                    新增工程專案
-                </button>
+                <div className="flex gap-2 ml-auto">
+                    <button onClick={handleExportProjects} className="flex items-center gap-1 px-3 py-2 border bg-white hover:bg-slate-50 rounded-lg text-sm text-slate-600 shadow-sm">
+                        <Download size={16} /> 匯出
+                    </button>
+                    <label className="flex items-center gap-1 px-3 py-2 border bg-white hover:bg-slate-50 rounded-lg text-sm text-slate-600 cursor-pointer shadow-sm">
+                        <Upload size={16} /> 匯入
+                        <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportProjects} />
+                    </label>
+                    <button
+                        onClick={() => {
+                            setEditingProject({ sequence: 0, abbreviation: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' });
+                            setProjectFormOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"
+                    >
+                        <Plus size={16} />
+                        新增工程專案
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

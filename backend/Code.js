@@ -371,6 +371,9 @@ function handleRequest(e) {
         if (data.sections) {
           saveData(ss, 'Section', data.sections);
         }
+        if (data.users) { // Support saving users
+          saveData(ss, 'Users', data.users);
+        }
         output.success = true;
       }
     }
@@ -378,10 +381,10 @@ function handleRequest(e) {
     // 回傳最新資料
     output.projects = loadData(ss, 'Projects');
     output.violations = loadData(ss, 'Violations');
-    // New: 回傳 Fine 資料供前端統計使用
     output.fines = loadData(ss, 'Fine');
     output.fineList = loadData(ss, 'FineList');
     output.sections = loadData(ss, 'Section');
+    output.users = loadData(ss, 'Users'); // Add users to output
 
     return jsonOutput(output);
 
