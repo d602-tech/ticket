@@ -368,6 +368,9 @@ function handleRequest(e) {
         if (data.fines) {
           saveData(ss, 'Fine', data.fines);
         }
+        if (data.sections) {
+          saveData(ss, 'Section', data.sections);
+        }
         output.success = true;
       }
     }

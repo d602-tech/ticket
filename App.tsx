@@ -40,6 +40,8 @@ import { EmailPreview } from './components/EmailPreview';
 import { LoginScreen } from './components/LoginScreen';
 import { LoadingModal } from './components/LoadingModal';
 import { FineStats } from './components/FineStats';
+import { VersionHistory } from './components/VersionHistory';
+import { PersonnelManagement } from './components/PersonnelManagement';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -598,6 +600,47 @@ function App() {
 
                 {/* 圖表區域 */}
                 {renderCharts()}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden h-full">
+                            <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                    <FileWarning size={20} className="text-indigo-500" />
+                                    最近違規紀錄
+                                </h3>
+                                <button onClick={() => setView('VIOLATIONS')} className="text-indigo-600 text-sm hover:underline font-medium">查看全部</button>
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                                {violations.slice(0, 5).map(v => (
+                                    <div key={v.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-1.5 h-10 rounded-full ${v.status === ViolationStatus.COMPLETED ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                                            <div>
+                                                <div className="font-bold text-slate-700 line-clamp-1">{v.contractorName}</div>
+                                                <div className="text-sm text-slate-400 flex items-center gap-1">
+                                                    <span className="bg-slate-100 px-1.5 rounded text-xs text-slate-500">{v.projectName}</span>
+                                                    <span>• {v.violationDate}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${v.status === ViolationStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                                {getStatusLabel(v.status)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {violations.length === 0 && (
+                                    <div className="p-8 text-center text-slate-400">目前無違規紀錄</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <VersionHistory />
+                    </div>
+                </div>
             </div>
         );
     };
@@ -1280,19 +1323,27 @@ function App() {
                         儀表板
                     </button>
                     <button
-                        onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
-                    >
-                        <FileWarning size={20} />
-                        違規紀錄
-                    </button>
-                    <button
                         onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
                     >
                         <DollarSign size={20} />
                         罰款統計暨違規講習
                     </button>
+                    <button
+                        onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
+                    >
+                        <FileWarning size={20} />
+                        違規講習紀錄
+                    </button>
+                    <button
+                        onClick={() => { setView('PERSONNEL'); setIsSidebarOpen(false); }}
+                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PERSONNEL' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
+                    >
+                        <Users size={20} />
+                        開單人員管理
+                    </button>
+
                     <button
                         onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }}
                         className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}
@@ -1355,7 +1406,7 @@ function App() {
                         <div>
                             <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
                                 {view === 'DASHBOARD' && '系統總覽'}
-                                {view === 'VIOLATIONS' && '違規管理紀錄'}
+                                {view === 'VIOLATIONS' && '違規講習紀錄'}
                                 {view === 'PROJECTS' && '工程專案管理'}
                                 {view === 'ADMIN' && '系統管理'}
                             </h1>
@@ -1371,7 +1422,15 @@ function App() {
 
                 {view === 'DASHBOARD' && renderDashboard()}
                 {view === 'VIOLATIONS' && renderViolationList()}
-                {view === 'FINE_STATS' && <FineStats projects={projects} fines={fines} fineList={fineList} sections={sections} onSaveFines={setFines} />}
+                {view === 'FINE_STATS' && <FineStats
+                    projects={projects}
+                    fines={fines}
+                    fineList={fineList}
+                    sections={sections}
+                    onSaveFines={setFines}
+                    onSaveSections={setSections}
+                    onSaveViolation={handleSaveViolation}
+                />}
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'ADMIN' && renderUserManagement()}
             </main>

@@ -106,4 +106,4 @@ export interface Coordinator {
   email: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'PROJECTS' | 'ADMIN' | 'FINE_STATS';
+export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'FINE_STATS' | 'PROJECTS' | 'ADMIN' | 'PERSONNEL';

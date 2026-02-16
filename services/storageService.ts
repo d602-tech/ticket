@@ -54,7 +54,8 @@ export const syncData = async (
         projectInfo?: { sequence: number | string, abbreviation: string },
         violationDate?: string
     },
-    fines?: Fine[]
+    fines?: Fine[],
+    sections?: Section[]
 ): Promise<{
     projects: Project[],
     violations: Violation[],
@@ -67,6 +68,7 @@ export const syncData = async (
         if (projects) payload.projects = projects;
         if (violations) payload.violations = violations;
         if (fines) payload.fines = fines; // Support saving fines
+        if (sections) payload.sections = sections; // Support saving sections
         // 如果有檔案需要上傳
         if (fileUpload) {
             payload.fileUpload = fileUpload;

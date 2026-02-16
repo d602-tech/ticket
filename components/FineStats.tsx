@@ -3,8 +3,8 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell
 } from 'recharts';
-import { Fine, Project, FineList, Section } from '../types';
-import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Fine, Project, FineList, Section, Violation, ViolationStatus } from '../types';
+import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle } from 'lucide-react';
 import { syncData } from '../services/storageService';
 import { formatDate } from '../utils';
 import * as XLSX from 'xlsx';
@@ -17,6 +17,8 @@ interface FineStatsProps {
     fineList: FineList[];
     sections: Section[];
     onSaveFines: (fines: Fine[]) => void;
+    onSaveSections: (sections: Section[]) => void;
+    onSaveViolation: (violation: Violation) => Promise<void>;
 }
 
 // Helper to group fines by ticket number
@@ -28,15 +30,16 @@ interface TicketGroup {
     totalAmount: number;
 }
 
-export function FineStats({ projects, fines, fineList, sections, onSaveFines }: FineStatsProps) {
-    const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('stats');
+export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation }: FineStatsProps) {
+    const [activeTab, setActiveTab] = useState<'stats' | 'manage' | 'personnel'>('stats');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     // Ticket State
+    const [editTicketNumber, setEditTicketNumber] = useState<string | null>(null); // Track if editing existing ticket
     const [currentTicket, setCurrentTicket] = useState<Partial<Fine>>({
         date: new Date().toISOString().split('T')[0],
-        relationship: '舊約' // Default relationship
+        relationship: '舊約' // Default relationship (initial) - logic usually handled in item
     });
 
     // Items for the current ticket
@@ -46,7 +49,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
     const [currentItem, setCurrentItem] = useState<Partial<Fine>>({
         count: 1,
         multiplier: 1,
-        relationship: '舊約'
+        relationship: '現約' // Default
     });
 
     // Validations
@@ -59,13 +62,19 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
     const ticketTypes = ['走動管理', 'CCTV', '工安查核', '現檢員', '監造', '營建處', '勞檢'];
     const cctvTypes = ['設備', '現檢員', '工安組'];
     const allocTypes = ['處長', '副處長', '課長', '部門經理', '工安經理', '工安課長', '現檢員'];
-    const relationships = ['舊約', '新約'];
+    const relationships = ['舊約', '新約', '現約'];
+
+    // --- Personnel Management State ---
+    const [isEditingSection, setIsEditingSection] = useState(false);
+    const [currentSection, setCurrentSection] = useState<Partial<Section>>({});
 
     // --- Effects for Ticket Level ---
 
     // Auto-fill Host Team/Contractor based on Project
     useEffect(() => {
         if (currentTicket.projectName) {
+            // Find project. Note: we might need to handle the "Abbr" display vs Name logic
+            // The dropdown value is `name`.
             const proj = projects.find(p => p.name === currentTicket.projectName);
             if (proj) {
                 setCurrentTicket(prev => ({
@@ -88,19 +97,58 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
 
     // --- Effects for Item Level ---
 
-    // Auto-fill Unit Price/Unit based on Violation Item
+    // Auto-fill Unit Price/Unit based on Violation Item & Logic for Relationship
     useEffect(() => {
         if (currentItem.violationItem) {
             const item = fineList.find(i => i.violationItem === currentItem.violationItem);
             if (item) {
-                setCurrentItem(prev => ({
-                    ...prev,
-                    unitPrice: item.amount,
-                    unit: item.unit
-                }));
+                const isPriceChanged = Number(currentItem.unitPrice) !== Number(item.amount);
+
+                setCurrentItem(prev => {
+                    // Only auto-fill if unit price wasn't manually set yet OR if we are just selecting violation
+                    // But here logic: validation says "if Unchanged -> Case Contract".
+                    // We should probably set default price first.
+                    const newPrice = item.amount;
+                    const newUnit = item.unit;
+
+                    // If user hasn't touched the price, use default.
+                    // But wait, unitPrice state depends on user input.
+                    // This effect runs on violationItem change.
+                    return {
+                        ...prev,
+                        unitPrice: newPrice,
+                        unit: newUnit,
+                        relationship: '現約' // Reset to default when item changes
+                    };
+                });
             }
         }
     }, [currentItem.violationItem, fineList]);
+
+    // Relationship Logic on Price Change
+    // We need to detect if price is modified from original.
+    useEffect(() => {
+        if (currentItem.violationItem && currentItem.unitPrice !== undefined) {
+            const originalItem = fineList.find(i => i.violationItem === currentItem.violationItem);
+            if (originalItem) {
+                const isPriceChanged = Number(currentItem.unitPrice) !== Number(originalItem.amount);
+                // If price changed and relationship is still default '現約', suggest user to check it or set to '舊約' default for changed price
+                if (isPriceChanged) {
+                    // If previously '現約' (which implies unmodified), change to '舊約' as default for modified, or keep user selection
+                    // Use a Ref or check previous state if needed?
+                    // Simplest: If relationship is '現約', switch to '舊約' as prompt.
+                    if (currentItem.relationship === '現約') {
+                        setCurrentItem(prev => ({ ...prev, relationship: '舊約' }));
+                    }
+                } else {
+                    // If price restored to original, maybe set back to '現約'?
+                    if (currentItem.relationship === '舊約' && !currentItem.priceAdjustmentReason) {
+                        setCurrentItem(prev => ({ ...prev, relationship: '現約' }));
+                    }
+                }
+            }
+        }
+    }, [currentItem.unitPrice, currentItem.violationItem, fineList]); // Re-run when price changes
 
     // Auto-calculate Subtotal
     useEffect(() => {
@@ -110,22 +158,22 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         const subtotal = price * count * mult;
 
         if (currentItem.subtotal !== subtotal) {
-            setCurrentItem(prev => ({ ...prev, subtotal, totalAmount: subtotal }));
+            setCurrentItem(prev => ({ ...prev, subtotal }));
         }
     }, [currentItem.unitPrice, currentItem.count, currentItem.multiplier]);
 
     // Total Amount Validation for Ticket
-    const currentTicketTotal = useMemo(() => {
+    const calculatedTicketTotal = useMemo(() => {
         return ticketItems.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
     }, [ticketItems]);
 
     useEffect(() => {
-        if (currentTicketTotal > 10000) {
+        if (calculatedTicketTotal >= 10000) {
             setShowValidationAlert(true);
         } else {
             setShowValidationAlert(false);
         }
-    }, [currentTicketTotal]);
+    }, [calculatedTicketTotal]);
 
     // --- Handlers ---
 
@@ -140,7 +188,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
             const originalItem = fineList.find(i => i.violationItem === currentItem.violationItem);
             if (originalItem && Number(currentItem.unitPrice) !== Number(originalItem.amount)) {
                 if (!currentItem.priceAdjustmentReason) {
-                    alert('修改單價時必須填寫「修改原因」');
+                    alert('修改單價時必須填寫「修改原因」並確認「關係」');
                     return;
                 }
             }
@@ -167,7 +215,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         setCurrentItem({
             count: 1,
             multiplier: 1,
-            relationship: '舊約'
+            relationship: '現約'
         });
     };
 
@@ -188,41 +236,42 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         }
 
         if (showValidationAlert) {
-            if (!confirm('本單總金額超過 10,000 元，請確認是否繼續儲存？(應進行違規講習)')) {
+            if (!confirm('本單總金額達 1 萬元以上，請確認是否繼續儲存？(應進行違規講習)')) {
                 return;
             }
         }
 
         setIsSaving(true);
         try {
-            // Filter out items that are part of this ticket being edited (if editing existing)
-            // But since input method separates creation, we can just append new items 
-            // OR if we support editing a whole ticket, we need to remove old items with this ticket number.
-            // For simplicity in this version, we act as 'Upsert' based on seq, but logic simpler to just add new ones
-            // or replace if we are implementing full ticket editing.
-
-            // Current Save Logic:
-            // 1. Identify all items in `ticketItems`.
-            // 2. Ensure they have all latest Ticket Level fields.
-            // 3. Update main `fines` state.
+            // FIX: Ensure totalAmount is Sum of all items for EVERY item in this ticket
+            // We calculate it once
+            const finalTotalAmount = ticketItems.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
 
             const finalItems = ticketItems.map(item => ({
                 ...item,
                 ...currentTicket,
+                // Override item's totalAmount with Ticket Total
+                totalAmount: finalTotalAmount,
                 seq: item.seq || Date.now().toString() + Math.random().toString(36).substr(2, 5)
             })) as Fine[];
 
-            // If we are editing a ticket (based on ticketNumber presence in existing fines?),
-            // we should probably remove old entries for this ticket to avoid duplicates if user modified them.
-            // But unique ID is `seq`.
+            let updatedFines;
 
-            // Let's assume we are replacing any existing fines with same IDs, or adding new.
-            // To support "Edit Ticket", we would need to know which fines belonged to it.
+            if (editTicketNumber) {
+                // If editing an existing ticket group, we replace ALL items of that ticket number
+                // This handles deletions (items removed from ticketItems won't be added back)
+                // And modifications.
 
-            // Merge logic: Remove fines with same seq as finalItems, then add finalItems.
-            const statsSeqs = finalItems.map(f => f.seq);
-            const otherFines = fines.filter(f => !statsSeqs.includes(f.seq));
-            const updatedFines = [...otherFines, ...finalItems];
+                // 1. Remove all fines with the ORIGINAL ticket number
+                updatedFines = fines.filter(f => f.ticketNumber !== editTicketNumber);
+
+                // 2. Add the new/modified items
+                updatedFines = [...updatedFines, ...finalItems];
+            } else {
+                // Creating new ticket - just append
+                // Note: If user manually entered a Ticket Number that matches existing, we effectively merge/append
+                updatedFines = [...fines, ...finalItems];
+            }
 
             const result = await syncData(undefined, undefined, undefined, updatedFines);
             onSaveFines(result.fines);
@@ -236,7 +285,44 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         }
     };
 
+    // New: Convert to Violation Record
+    const handleConvertToViolation = async () => {
+        if (!currentTicket.projectName || !currentTicket.contractor || !currentTicket.date) {
+            alert('資料不完整，無法轉換');
+            return;
+        }
+
+        if (!confirm('確定要建立一筆新的「違規管理紀錄」嗎？')) return;
+
+        setIsSaving(true);
+        try {
+            // Create Violation Object
+            const newViolation: Violation = {
+                id: Date.now().toString(),
+                contractorName: currentTicket.contractor,
+                projectName: currentTicket.projectName,
+                violationDate: currentTicket.date,
+                lectureDeadline: '', // To be filled manually later or calculate +X days?
+                description: `罰款單號: ${currentTicket.ticketNumber} - 總金額: ${calculatedTicketTotal.toLocaleString()}元。` +
+                    ticketItems.map(i => `\n- ${i.violationItem}`).join(''),
+                status: ViolationStatus.PENDING,
+                fineAmount: calculatedTicketTotal,
+                isMajorViolation: false
+                // participants, etc. left empty
+            };
+
+            await onSaveViolation(newViolation);
+            alert('已成功建立違規紀錄！');
+        } catch (e) {
+            console.error(e);
+            alert('建立違規紀錄失敗');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const resetForm = () => {
+        setEditTicketNumber(null);
         setCurrentTicket({
             date: new Date().toISOString().split('T')[0],
             relationship: '舊約'
@@ -245,7 +331,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         setCurrentItem({
             count: 1,
             multiplier: 1,
-            relationship: '舊約'
+            relationship: '現約'
         });
         setShowValidationAlert(false);
     };
@@ -255,6 +341,8 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         if (items.length > 0) {
             // Load ticket level info from first item
             const first = items[0];
+            setEditTicketNumber(ticketNo); // Mark as editing this ticket
+
             setCurrentTicket({
                 date: first.date,
                 issueDate: first.issueDate,
@@ -289,6 +377,59 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         }
     };
 
+    // --- Personnel Management Handlers ---
+
+    const handleSaveSection = async () => {
+        if (!currentSection.name || !currentSection.hostTeam) {
+            alert('請填寫姓名與主辦工作隊');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            let updatedSections;
+            // Check if updating existing by email or name/team combination?
+            // Since we don't have unique ID for sections, let's use name+team or email as key or just append if no match?
+            // Assuming we edit via index or reference. But here we have simplified UI.
+            // If we have an "original" object we can replace.
+
+            // Simplification: We assume name is unique within team? Or just add/replace.
+            // Let's rely on finding by name+hostTeam
+            const existsIndex = sections.findIndex(s => s.name === currentSection.name && s.hostTeam === currentSection.hostTeam);
+
+            if (existsIndex >= 0 && isEditingSection) {
+                updatedSections = [...sections];
+                updatedSections[existsIndex] = currentSection as Section;
+            } else {
+                updatedSections = [...sections, currentSection as Section];
+            }
+
+            const result = await syncData(undefined, undefined, undefined, undefined, updatedSections);
+            onSaveSections(result.sections);
+            setIsEditingSection(false);
+            setCurrentSection({});
+        } catch (e) {
+            console.error(e);
+            alert('儲存失敗');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteSection = async (section: Section) => {
+        if (!confirm(`確定刪除 ${section.name}?`)) return;
+        setIsSaving(true);
+        try {
+            const updatedSections = sections.filter(s => s !== section);
+            const result = await syncData(undefined, undefined, undefined, undefined, updatedSections);
+            onSaveSections(result.sections);
+        } catch (e) {
+            alert('刪除失敗');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // Excel Export
     const handleExport = () => {
         const wb = XLSX.utils.book_new();
@@ -313,8 +454,6 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
             if (confirm(`即將匯入 ${data.length} 筆資料，這將合併至現有資料。確定?`)) {
                 setIsSaving(true);
                 try {
-                    // Merge: append new data. You might want strategies (skip duplicates based on seq?)
-                    // For now, simple append.
                     const updatedFines = [...fines, ...data];
                     const result = await syncData(undefined, undefined, undefined, updatedFines);
                     onSaveFines(result.fines);
@@ -330,7 +469,6 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         reader.readAsBinaryString(file);
     };
 
-    // Render Stats ... (Keep logic but maybe update grouping)
     // Grouping by Ticket for management view
     const tickets = useMemo(() => {
         const groups: Record<string, TicketGroup> = {};
@@ -342,21 +480,25 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                     date: f.date || '',
                     projectName: f.projectName || '',
                     items: [],
-                    totalAmount: 0
+                    totalAmount: 0 // Will recalc from items just to be sure
                 };
             }
             groups[tNo].items.push(f);
+            // Use subtotal sum to be accurate per query "Total Amount in DB missing sum"
+            // The display here is just SUM(subtotals)
             groups[tNo].totalAmount += (Number(f.subtotal) || 0);
         });
         return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [fines]);
 
-    // Existing Stats Render Logic (Simplified for brevity, or kept same)
+    // Stats Render Logic
     const renderStats = () => {
-        // ... (Keep existing stats logic, it relies on `fines` prop which is still flat list)
-        // 1. By Project
+        // 1. By Project (Using Abbreviation)
         const finesByProject = fines.reduce((acc, curr) => {
-            const name = curr.projectName || '未分類';
+            // Find project to get abbr
+            const proj = projects.find(p => p.name === curr.projectName);
+            const name = proj ? proj.abbreviation : (curr.projectName || '未分類');
+
             if (!acc[name]) acc[name] = 0;
             acc[name] += (Number(curr.subtotal) || 0);
             return acc;
@@ -413,7 +555,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 className="font-bold text-slate-700 mb-4">各工程罰款統計</h3>
+                        <h3 className="font-bold text-slate-700 mb-4">各工程罰款統計 (簡稱)</h3>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={projectData} layout="vertical">
@@ -468,9 +610,18 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                     <div className="border-b border-slate-100 p-4 bg-slate-50 rounded-t-xl">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-bold text-slate-700">罰單基本資料</h3>
-                            <div className="text-xl font-bold text-red-600">
-                                自計總額: ${currentTicketTotal.toLocaleString()}
-                                {showValidationAlert && <span className="text-xs ml-2 bg-red-100 text-red-600 px-2 py-1 rounded-full"><AlertTriangle size={12} className="inline mr-1" />超過1萬</span>}
+                            <div className="flex items-center gap-4">
+                                <div className="text-xl font-bold text-red-600">
+                                    自計總額: ${calculatedTicketTotal.toLocaleString()}
+                                </div>
+                                {showValidationAlert && (
+                                    <button
+                                        onClick={handleConvertToViolation}
+                                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold hover:bg-red-200 transition-colors animate-pulse"
+                                    >
+                                        <ArrowRightCircle size={16} /> 轉換違規紀錄
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -610,7 +761,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                             <div className="md:col-span-1">
                                 <label className="block text-xs font-medium text-indigo-700 mb-1">關係</label>
                                 <select className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                    value={currentItem.relationship || '舊約'}
+                                    value={currentItem.relationship || '現約'}
                                     onChange={e => setCurrentItem({ ...currentItem, relationship: e.target.value })}
                                 >
                                     {relationships.map(r => <option key={r} value={r}>{r}</option>)}
@@ -672,7 +823,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                         {showValidationAlert && (
                             <div className="text-red-600 font-bold flex items-center gap-2">
                                 <AlertTriangle size={20} />
-                                總額超過 10,000 元，請發起違規講習！
+                                總額達 1 萬元以上 (應進行違規講習)
                             </div>
                         )}
                         <div className="flex gap-3 ml-auto">
@@ -746,6 +897,96 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
         );
     };
 
+    const renderPersonnel = () => {
+        return (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-700">開單人員管理</h3>
+                    <button
+                        onClick={() => { setCurrentSection({}); setIsEditingSection(true); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                    >
+                        <Plus size={16} /> 新增人員
+                    </button>
+                </div>
+
+                {isEditingSection && (
+                    <div className="p-4 bg-slate-50 border-b border-slate-200">
+                        <h4 className="font-bold text-slate-700 mb-2">{currentSection.name ? '編輯人員' : '新增人員'}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">姓名 *</label>
+                                <input type="text" className="w-full p-2 border rounded"
+                                    value={currentSection.name || ''}
+                                    onChange={e => setCurrentSection({ ...currentSection, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊 *</label>
+                                <input type="text" className="w-full p-2 border rounded"
+                                    value={currentSection.hostTeam || ''}
+                                    onChange={e => setCurrentSection({ ...currentSection, hostTeam: e.target.value })}
+                                    list="team-suggestions"
+                                />
+                                <datalist id="team-suggestions">
+                                    {Array.from(new Set(sections.map(s => s.hostTeam))).map(t => <option key={t} value={t} />)}
+                                </datalist>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">職稱</label>
+                                <input type="text" className="w-full p-2 border rounded"
+                                    value={currentSection.title || ''}
+                                    onChange={e => setCurrentSection({ ...currentSection, title: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                                <input type="email" className="w-full p-2 border rounded"
+                                    value={currentSection.email || ''}
+                                    onChange={e => setCurrentSection({ ...currentSection, email: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-4 flex gap-2">
+                            <button onClick={handleSaveSection} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
+                            <button onClick={() => setIsEditingSection(false)} className="px-4 py-2 bg-slate-300 text-slate-700 rounded hover:bg-slate-400 text-sm">取消</button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-500 font-medium">
+                            <tr>
+                                <th className="px-4 py-3">主辦工作隊</th>
+                                <th className="px-4 py-3">姓名</th>
+                                <th className="px-4 py-3">職稱</th>
+                                <th className="px-4 py-3">Email</th>
+                                <th className="px-4 py-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {sections.map((s, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="px-4 py-3">{s.hostTeam}</td>
+                                    <td className="px-4 py-3 font-bold text-slate-700">{s.name}</td>
+                                    <td className="px-4 py-3">{s.title}</td>
+                                    <td className="px-4 py-3 text-slate-500">{s.email}</td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => { setCurrentSection(s); setIsEditingSection(true); }} className="p-1 text-slate-400 hover:text-indigo-600"><Edit2 size={16} /></button>
+                                            <button onClick={() => handleDeleteSection(s)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -763,15 +1004,23 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines }: 
                     >
                         資料管理
                     </button>
+                    <button
+                        onClick={() => setActiveTab('personnel')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'personnel' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        人員管理
+                    </button>
                 </div>
             </div>
 
-            {activeTab === 'stats' ? renderStats() : renderManage()}
+            {activeTab === 'stats' && renderStats()}
+            {activeTab === 'manage' && renderManage()}
+            {activeTab === 'personnel' && renderPersonnel()}
 
             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-sm text-indigo-700 flex items-start gap-2">
                 <div className="mt-0.5"><Filter size={16} /></div>
                 <div>
-                    提示：此系統資料與 Google Sheet「Fine」同步。支援 Excel 匯入/匯出。
+                    提示：此系統資料與 Google Sheet「Fine」同步。人員資料同步至「Section」。違規紀錄同步至「Violations」。
                 </div>
             </div>
         </div>
