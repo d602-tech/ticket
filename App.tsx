@@ -25,7 +25,8 @@ import {
     RefreshCw,
     DollarSign,
     Menu,
-    Edit
+    Edit,
+    Shield
 } from 'lucide-react';
 import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -42,7 +43,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { LoadingModal } from './components/LoadingModal';
 import { FineStats } from './components/FineStats';
 import { VersionHistory } from './components/VersionHistory';
-import { PersonnelManagement } from './components/PersonnelManagement';
+import PersonnelManagement from './components/PersonnelManagement';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,6 +62,10 @@ function App() {
     const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
     const [currentUserRole, setCurrentUserRole] = useState<string>(''); // Current logged in user role
     const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = previous (Viewer Dashboard)
+    const [dashboardMonth, setDashboardMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }); // Dashboard month selector (YYYY-MM)
 
     // Fetch users when role becomes admin
     useEffect(() => {
@@ -538,23 +543,38 @@ function App() {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
 
-    // Monthly Fines
+    // 使用者選取的月份
+    const [dashboardYear, dashboardMonthNum] = dashboardMonth.split('-').map(Number);
+
+    // Monthly Fines (selected month)
     const monthlyFines = fines.filter(f => {
         const d = new Date(f.date);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        return d.getFullYear() === dashboardYear && d.getMonth() === dashboardMonthNum - 1;
     }).reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
+
+    // Monthly Fine Count
+    const monthlyFineCount = fines.filter(f => {
+        const d = new Date(f.date);
+        return d.getFullYear() === dashboardYear && d.getMonth() === dashboardMonthNum - 1;
+    }).length;
 
     // Total Fine Count (Items)
     const totalFineCount = fines.length;
 
-    // Contractor Chart Data
-    const contractorData = Object.entries(fines.reduce((acc, curr) => {
+    // Contractor Chart Data (selected month)
+    const monthlyFinesForChart = fines.filter(f => {
+        const d = new Date(f.date);
+        return d.getFullYear() === dashboardYear && d.getMonth() === dashboardMonthNum - 1;
+    });
+    const contractorData = Object.entries(monthlyFinesForChart.reduce((acc, curr) => {
         const name = curr.contractor || '未分類';
         acc[name] = (acc[name] || 0) + (Number(curr.subtotal) || 0);
         return acc;
     }, {} as Record<string, number>))
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value); // Sort by amount descending
+        .sort((a, b) => b.value - a.value);
+
+    const contractorTotal = contractorData.reduce((sum, d) => sum + d.value, 0);
 
     const COLORS_CONTRACTOR = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
 
@@ -668,6 +688,16 @@ function App() {
 
         return (
             <div className="animate-fade-in space-y-6">
+                {/* 月份選擇器 + 數據卡片列 */}
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-bold text-slate-700">{dashboardYear}年{dashboardMonthNum}月 罰款統計</h2>
+                    <input
+                        type="month"
+                        value={dashboardMonth}
+                        onChange={e => setDashboardMonth(e.target.value)}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    />
+                </div>
                 {/* 數據卡片列 */}
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                     <StatCard
@@ -684,11 +714,17 @@ function App() {
                         isCurrency
                     />
                     <StatCard
-                        title="本月罰款金額"
+                        title={`${dashboardMonthNum}月罰款金額`}
                         value={`$${monthlyFines.toLocaleString()}`}
                         icon={DollarSign}
                         colorClass="bg-blue-600"
                         isCurrency
+                    />
+                    <StatCard
+                        title={`${dashboardMonthNum}月罰款筆數`}
+                        value={monthlyFineCount}
+                        icon={FileText}
+                        colorClass="bg-cyan-600"
                     />
                     <StatCard
                         title="總罰款筆數"
@@ -748,8 +784,8 @@ function App() {
 
                 {/* 承攬商罰款佔比圖表 */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80 hover:shadow-md transition-shadow mb-8">
-                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">各承攬商罰款金額佔比</h3>
-                    <div className="h-80">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">{dashboardMonthNum}月各承攬商罰款金額佔比</h3>
+                    <div className="h-80 relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -769,6 +805,13 @@ function App() {
                                 </Pie>
                                 <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
                                 <Legend />
+                                {/* 總金額中心標籤 */}
+                                <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-xs">
+                                    總金額
+                                </text>
+                                <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-800 text-lg font-bold">
+                                    ${contractorTotal.toLocaleString()}
+                                </text>
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
@@ -1146,8 +1189,52 @@ function App() {
         }
     };
 
+    const handleChangeUserRole = async (user: User, newRole: string) => {
+        setIsLoading(true);
+        try {
+            const updatedUsers = users.map(u =>
+                u.email === user.email ? { ...u, role: newRole } : u
+            );
+            const result = await syncData(undefined, undefined, undefined, undefined, undefined, updatedUsers);
+            setUsers(result.users);
+        } catch (e) {
+            alert('更改權限失敗');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getRoleStyle = (role: string) => {
+        switch (role) {
+            case 'admin':
+                return {
+                    card: 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50',
+                    avatar: 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200',
+                    badge: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                    badgeLabel: '系統管理員',
+                    dot: 'bg-indigo-500'
+                };
+            case 'viewer':
+                return {
+                    card: 'border-slate-200 bg-gradient-to-br from-slate-50 to-gray-50',
+                    avatar: 'bg-gradient-to-br from-slate-400 to-gray-500 shadow-slate-200',
+                    badge: 'bg-slate-100 text-slate-600 border-slate-200',
+                    badgeLabel: '觀看者',
+                    dot: 'bg-slate-400'
+                };
+            default:
+                return {
+                    card: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50',
+                    avatar: 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200',
+                    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                    badgeLabel: '一般使用者',
+                    dot: 'bg-emerald-500'
+                };
+        }
+    };
+
     const renderUserManagement = () => (
-        <div className="animate-fade-in max-w-6xl mx-auto space-y-8">
+        <div className="animate-fade-in max-w-7xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">帳號管理</h2>
@@ -1160,42 +1247,67 @@ function App() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* 列表區域 (佔 2/3) */}
-                <div className="md:col-span-2 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {users.map((user, idx) => (
-                            <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow group">
-                                <div>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${user.role === 'admin' ? 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
-                                            {user.name ? user.name.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                        {user.role === 'admin' && (
-                                            <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-medium border border-indigo-100">
-                                                Admin
-                                            </span>
-                                        )}
-                                    </div>
-                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{user.name || '(無名稱)'}</h3>
-                                    <p className="text-slate-500 text-sm font-mono break-all">{user.email || '(無信箱)'}</p>
-
-                                    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
-                                        <span>Role: {user.role}</span>
-                                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 使用者卡片區域 (佔 2/3) */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* 按角色分組顯示 */}
+                    {['admin', 'user', 'viewer'].map(role => {
+                        const roleUsers = users.filter(u => u.role === role);
+                        if (roleUsers.length === 0) return null;
+                        const style = getRoleStyle(role);
+                        return (
+                            <div key={role}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`}></div>
+                                    <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider">
+                                        {style.badgeLabel} ({roleUsers.length})
+                                    </h3>
                                 </div>
-                                <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => handleDeleteUser(user)}
-                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="刪除帳號"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {roleUsers.map((user, idx) => {
+                                        const s = getRoleStyle(user.role);
+                                        return (
+                                            <div key={idx} className={`rounded-xl shadow-sm border p-5 flex flex-col justify-between hover:shadow-md transition-shadow group ${s.card}`}>
+                                                <div>
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${s.avatar}`}>
+                                                            {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${s.badge}`}>
+                                                            {s.badgeLabel}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{user.name || '(無名稱)'}</h3>
+                                                    <p className="text-slate-500 text-sm font-mono break-all">{user.email || '(無信箱)'}</p>
+                                                    <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
+                                                        <label className="text-xs text-slate-500 font-medium">權限：</label>
+                                                        <select
+                                                            value={user.role}
+                                                            onChange={(e) => handleChangeUserRole(user, e.target.value)}
+                                                            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                                                        >
+                                                            <option value="admin">系統管理員</option>
+                                                            <option value="user">一般使用者</option>
+                                                            <option value="viewer">觀看者</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="刪除帳號"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                     {users.length === 0 && (
                         <div className="text-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400">
                             尚無使用者資料 (或無法讀取)
@@ -1203,8 +1315,9 @@ function App() {
                     )}
                 </div>
 
-                {/* 新增表單 (佔 1/3) */}
-                <div>
+                {/* 右側：新增表單 + 權限說明 */}
+                <div className="space-y-6">
+                    {/* 新增表單 */}
                     <div className="bg-white rounded-xl shadow-lg shadow-indigo-100 border border-indigo-50 p-6 sticky top-8">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-indigo-50">
                             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -1216,60 +1329,48 @@ function App() {
                         <form onSubmit={handleAddUser} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">姓名</label>
-                                <div className="relative">
-                                    <Users className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        required
-                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
-                                        value={newUserForm.name}
-                                        onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
-                                        placeholder="輸入使用者姓名"
-                                    />
-                                </div>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                    value={newUserForm.name}
+                                    onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                                    placeholder="輸入使用者姓名"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Email (帳號)</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                    <input
-                                        type="email"
-                                        required
-                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
-                                        value={newUserForm.email}
-                                        onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                                        placeholder="user@example.com"
-                                    />
-                                </div>
+                                <input
+                                    type="email"
+                                    required
+                                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                    value={newUserForm.email}
+                                    onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                                    placeholder="user@example.com"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">密碼</label>
-                                <div className="relative">
-                                    <div className="absolute left-3 top-3 w-4 h-4 text-slate-400 font-mono text-xs">***</div>
-                                    <input
-                                        type="text" // Visible for admin creation
-                                        required
-                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
-                                        value={newUserForm.password}
-                                        onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
-                                        placeholder="設定預設密碼"
-                                    />
-                                </div>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white"
+                                    value={newUserForm.password}
+                                    onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                                    placeholder="設定預設密碼"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">權限角色</label>
-                                <div className="relative">
-                                    <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                    <select
-                                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white appearance-none"
-                                        value={newUserForm.role}
-                                        onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
-                                    >
-                                        <option value="user">一般使用者 (User)</option>
-                                        <option value="admin">系統管理員 (Admin)</option>
-                                        <option value="viewer">觀看者 (Viewer)</option>
-                                    </select>
-                                </div>
+                                <select
+                                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white appearance-none"
+                                    value={newUserForm.role}
+                                    onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                                >
+                                    <option value="user">一般使用者 (User)</option>
+                                    <option value="admin">系統管理員 (Admin)</option>
+                                    <option value="viewer">觀看者 (Viewer)</option>
+                                </select>
                             </div>
                             <button
                                 type="submit"
@@ -1279,6 +1380,52 @@ function App() {
                                 新增帳號
                             </button>
                         </form>
+                    </div>
+
+                    {/* 權限差異說明 */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <Shield size={16} className="text-indigo-500" />
+                            權限差異說明
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                    <span className="text-xs font-bold text-indigo-700">系統管理員 (Admin)</span>
+                                </div>
+                                <ul className="text-xs text-indigo-600 space-y-0.5 pl-4">
+                                    <li>• 所有功能完整存取</li>
+                                    <li>• 帳號管理（新增/刪除/改權限）</li>
+                                    <li>• 開單、編輯、刪除違規紀錄</li>
+                                    <li>• 管理工程與罰款資料</li>
+                                </ul>
+                            </div>
+                            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <span className="text-xs font-bold text-emerald-700">一般使用者 (User)</span>
+                                </div>
+                                <ul className="text-xs text-emerald-600 space-y-0.5 pl-4">
+                                    <li>• 檢視所有資料與報表</li>
+                                    <li>• 開單、編輯違規紀錄</li>
+                                    <li>• 管理工程與罰款資料</li>
+                                    <li>• 無法管理帳號</li>
+                                </ul>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                                    <span className="text-xs font-bold text-slate-600">觀看者 (Viewer)</span>
+                                </div>
+                                <ul className="text-xs text-slate-500 space-y-0.5 pl-4">
+                                    <li>• 僅限儀表板瀏覽</li>
+                                    <li>• 查看當月/上月罰款統計</li>
+                                    <li>• 無法新增或修改任何資料</li>
+                                    <li>• 無法進入其他功能頁面</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

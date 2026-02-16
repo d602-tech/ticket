@@ -140,6 +140,18 @@ function handleRequest(e) {
         output.success = true;
         return jsonOutput(output);
       }
+
+      // ========== 取得全部資料 (快速路徑，跳過初始化) ==========
+      if (data.action === 'getData') {
+        output.projects = loadData(ss, 'Projects');
+        output.violations = loadData(ss, 'Violations');
+        output.fines = loadData(ss, 'Fine');
+        output.fineList = loadData(ss, 'FineList');
+        output.sections = loadData(ss, 'Section');
+        output.users = loadData(ss, 'Users');
+        output.success = true;
+        return jsonOutput(output);
+      }
     }
 
     // === 自動初始化功能 (僅在非登入操作時執行) ===
@@ -396,6 +408,7 @@ function handleRequest(e) {
     output.fines = loadData(ss, 'Fine');
     output.fineList = loadData(ss, 'FineList');
     output.sections = loadData(ss, 'Section');
+    output.users = loadData(ss, 'Users');
 
     return jsonOutput(output);
 

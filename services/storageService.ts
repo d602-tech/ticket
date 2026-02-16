@@ -31,7 +31,7 @@ export const fetchInitialData = async (): Promise<{
     users: User[]
 }> => {
     try {
-        const data = await callGasApi({});
+        const data = await callGasApi({ action: 'getData' });
         return {
             projects: data.projects || MOCK_PROJECTS,
             violations: data.violations || MOCK_VIOLATIONS,

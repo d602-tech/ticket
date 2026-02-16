@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Section } from '../types';
-import { Plus, Edit2, Trash2, Save, X, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Filter, Loader2 } from 'lucide-react';
 
 interface PersonnelManagementProps {
     sections: Section[];
@@ -8,41 +8,40 @@ interface PersonnelManagementProps {
     syncService: (projects?: any, violations?: any, filePayload?: any, fines?: any, sections?: any) => Promise<any>;
 }
 
-export function PersonnelManagement({ sections, onSaveSections, syncService }: PersonnelManagementProps) {
+export default function PersonnelManagement({ sections, onSaveSections, syncService }: PersonnelManagementProps) {
     const [isEditingSection, setIsEditingSection] = useState(false);
     const [currentSection, setCurrentSection] = useState<Partial<Section>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    // Dropdown options
-    const titles = ['經理', '課長', '站長', '專員', '技術員', '處長', '副處長'];
-    const hostTeams = ['土木工作隊', '機械工作隊', '建築工作隊', '電氣工作隊', '中部工作隊', '南部工作隊', '工業安全衛生組', '處長室', '工務組', '檢驗組', '規劃組'];
+    const hostTeams = ['土木工作隊', '建築工作隊', '機械工作隊', '電氣工作隊', '中部工作隊', '南部工作隊'];
+    const titles = ['隊長', '副隊長', '工程師', '助理工程師', '技術員', '管理師', '副管理師'];
 
     const handleSaveSection = async () => {
         if (!currentSection.name || !currentSection.hostTeam) {
-            alert('請填寫姓名與主辦工作隊');
+            alert('請填寫姓名和主辦工作隊');
             return;
         }
-
         setIsSaving(true);
         try {
-            let updatedSections;
-            // Check if updating existing by email or name/team combination
-            // We rely on finding by name+hostTeam as primitive ID
-            const existsIndex = sections.findIndex(s => s.name === currentSection.name && s.hostTeam === currentSection.hostTeam);
-
-            if (existsIndex >= 0 && isEditingSection) {
-                updatedSections = [...sections];
-                updatedSections[existsIndex] = currentSection as Section;
+            let updatedSections: Section[];
+            const existing = sections.find(s => s.name === currentSection.name && s.hostTeam === currentSection.hostTeam);
+            if (existing) {
+                updatedSections = sections.map(s =>
+                    (s.name === existing.name && s.hostTeam === existing.hostTeam) ? { ...s, ...currentSection } as Section : s
+                );
             } else {
-                updatedSections = [...sections, currentSection as Section];
+                updatedSections = [...sections, {
+                    name: currentSection.name,
+                    hostTeam: currentSection.hostTeam,
+                    title: currentSection.title || '',
+                    email: currentSection.email || ''
+                } as Section];
             }
-
             const result = await syncService(undefined, undefined, undefined, undefined, updatedSections);
-            onSaveSections(result.sections);
+            onSaveSections(result.sections || updatedSections);
             setIsEditingSection(false);
             setCurrentSection({});
         } catch (e) {
-            console.error(e);
             alert('儲存失敗');
         } finally {
             setIsSaving(false);
@@ -50,12 +49,12 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
     };
 
     const handleDeleteSection = async (section: Section) => {
-        if (!confirm(`確定刪除 ${section.name}?`)) return;
+        if (!confirm(`確定要刪除「${section.name}」嗎？`)) return;
         setIsSaving(true);
         try {
-            const updatedSections = sections.filter(s => s !== section);
+            const updatedSections = sections.filter(s => !(s.name === section.name && s.hostTeam === section.hostTeam));
             const result = await syncService(undefined, undefined, undefined, undefined, updatedSections);
-            onSaveSections(result.sections);
+            onSaveSections(result.sections || updatedSections);
         } catch (e) {
             alert('刪除失敗');
         } finally {
@@ -63,8 +62,43 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
         }
     };
 
+    const teamColors: Record<string, { bg: string; text: string; border: string; headerBg: string }> = {
+        '土木工作隊': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', headerBg: 'bg-blue-100' },
+        '建築工作隊': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', headerBg: 'bg-green-100' },
+        '機械工作隊': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', headerBg: 'bg-orange-100' },
+        '電氣工作隊': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', headerBg: 'bg-yellow-100' },
+        '中部工作隊': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', headerBg: 'bg-teal-100' },
+        '南部工作隊': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', headerBg: 'bg-indigo-100' },
+    };
+    const defaultTeamColor = { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', headerBg: 'bg-slate-100' };
+
+    // Group sections by hostTeam
+    const groupedSections = sections.reduce((acc, s) => {
+        const team = s.hostTeam || '未分類';
+        if (!acc[team]) acc[team] = [];
+        acc[team].push(s);
+        return acc;
+    }, {} as Record<string, Section[]>);
+
+    const teamOrder = ['土木工作隊', '建築工作隊', '機械工作隊', '電氣工作隊', '中部工作隊', '南部工作隊'];
+    const sortedTeams = Object.keys(groupedSections).sort((a, b) => {
+        const ia = teamOrder.indexOf(a);
+        const ib = teamOrder.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
+            {/* 同步中遮罩 */}
+            {isSaving && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-4 min-w-[300px]">
+                        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+                        <p className="text-lg font-medium text-slate-700">資料同步中...</p>
+                        <p className="text-sm text-slate-500">請稍候...</p>
+                    </div>
+                </div>
+            )}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
                     <div className="flex items-center gap-3">
@@ -73,7 +107,7 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
                         </div>
                         <div>
                             <h3 className="font-bold text-slate-700">開單人員管理</h3>
-                            <p className="text-xs text-slate-500">管理可進行開單的人員名單與所屬工作隊</p>
+                            <p className="text-xs text-slate-500">管理可進行開單的人員名單，依主辦工作隊分區顯示</p>
                         </div>
                     </div>
                     <button
@@ -141,48 +175,48 @@ export function PersonnelManagement({ sections, onSaveSections, syncService }: P
                     </div>
                 )}
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
-                            <tr>
-                                <th className="px-6 py-4">主辦工作隊</th>
-                                <th className="px-6 py-4">姓名</th>
-                                <th className="px-6 py-4">職稱</th>
-                                <th className="px-6 py-4">Email</th>
-                                <th className="px-6 py-4 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {sections.map((s, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold">
-                                            {s.hostTeam}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 font-bold text-slate-700 flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                                            {s.name.charAt(0)}
+                {/* 分區顯示 */}
+                <div className="divide-y divide-slate-100">
+                    {sortedTeams.map(team => {
+                        const members = groupedSections[team];
+                        const color = teamColors[team] || defaultTeamColor;
+                        return (
+                            <div key={team}>
+                                <div className={`px-6 py-3 ${color.headerBg} flex items-center justify-between`}>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`inline-block w-3 h-3 rounded-full ${color.text.replace('text-', 'bg-')}`}></span>
+                                        <span className={`font-bold text-sm ${color.text}`}>{team}</span>
+                                    </div>
+                                    <span className={`text-xs font-medium ${color.text} opacity-70`}>{members.length} 人</span>
+                                </div>
+                                <div className="bg-white">
+                                    {members.map((s, idx) => (
+                                        <div key={idx} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full ${color.headerBg} flex items-center justify-center ${color.text} font-bold text-xs`}>
+                                                    {s.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-slate-700 text-sm">{s.name}</span>
+                                                    {s.title && <span className="text-slate-400 text-xs ml-2">({s.title})</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-slate-400 font-mono text-xs hidden md:inline">{s.email || '-'}</span>
+                                                <div className="flex gap-1">
+                                                    <button onClick={() => { setCurrentSection(s); setIsEditingSection(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"><Edit2 size={14} /></button>
+                                                    <button onClick={() => handleDeleteSection(s)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"><Trash2 size={14} /></button>
+                                                </div>
+                                            </div>
                                         </div>
-                                        {s.name}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">{s.title || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-500 font-mono text-xs">{s.email || '-'}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => { setCurrentSection(s); setIsEditingSection(true); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"><Edit2 size={16} /></button>
-                                            <button onClick={() => handleDeleteSection(s)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"><Trash2 size={16} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {sections.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="p-8 text-center text-slate-400">尚無人員資料</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {sections.length === 0 && (
+                        <div className="p-8 text-center text-slate-400">尚無人員資料</div>
+                    )}
                 </div>
             </div>
 
