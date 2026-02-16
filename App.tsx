@@ -1741,6 +1741,9 @@ function App() {
                                 {view === 'VIOLATIONS' && '違規講習紀錄'}
                                 {view === 'PROJECTS' && '工程專案管理'}
                                 {view === 'ADMIN' && '系統管理'}
+                                {view === 'USERS' && '帳號管理'}
+                                {view === 'FINE_STATS' && '罰款統計暨違規講習'}
+                                {view === 'PERSONNEL' && '開單人員管理'}
                             </h1>
                             <p className="text-slate-400 mt-0.5 text-sm hidden md:block">管理違規事項並確保符合工安規範</p>
                         </div>
@@ -1765,6 +1768,8 @@ function App() {
                 />}
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'ADMIN' && renderUserManagement()}
+                {view === 'USERS' && renderUserManagement()}
+                {view === 'PERSONNEL' && <PersonnelManagement sections={sections} onSaveSections={setSections} />}
             </main>
 
             <ViolationModal
