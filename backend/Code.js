@@ -79,7 +79,9 @@ var HEADER_MAP = {
     'note': '備註',
     'ticketType': '開單類型',
     'supervisor': '督導人',
-    'allocation': '忠哥辦理罰單分配'
+    'allocation': '忠哥辦理罰單分配',
+    'scanFileName': '罰單掃描檔名稱',
+    'scanFileUrl': '罰單掃描檔連結'
   },
   'FineList': {
     'seq': '序號',
@@ -151,6 +153,45 @@ function handleRequest(e) {
         output.users = loadData(ss, 'Users');
         output.success = true;
         return jsonOutput(output);
+      }
+
+      // ========== 上傳罰單掃描檔 ==========
+      if (data.action === 'uploadFineScan') {
+        try {
+          var scanFolderId = '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF';
+          var scanFolder = DriveApp.getFolderById(scanFolderId);
+
+          var fileData = data.fileData;
+          var fileName = data.fileName || '罰單掃描_' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd');
+          var mimeType = data.mimeType || 'application/pdf';
+
+          var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
+          var uploadedFile = scanFolder.createFile(blob);
+          uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+          var scanFileUrl = uploadedFile.getUrl();
+
+          // 更新對應罰單記錄
+          if (data.ticketNumber) {
+            var fines = loadData(ss, 'Fine');
+            fines = fines.map(function (f) {
+              if (f.ticketNumber === data.ticketNumber) {
+                f.scanFileName = fileName;
+                f.scanFileUrl = scanFileUrl;
+              }
+              return f;
+            });
+            saveData(ss, 'Fine', fines);
+          }
+
+          output.success = true;
+          output.scanFileUrl = scanFileUrl;
+          output.scanFileName = fileName;
+          output.fines = loadData(ss, 'Fine');
+          return jsonOutput(output);
+        } catch (e) {
+          return jsonOutput({ success: false, error: e.toString() });
+        }
       }
     }
 

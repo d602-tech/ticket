@@ -60,6 +60,8 @@ export interface Fine {
   ticketType?: string;     // 開單類型
   supervisor?: string;     // 督導人
   allocation?: string;     // 忠哥辦理罰單分配
+  scanFileName?: string;   // 罰單掃描檔名稱
+  scanFileUrl?: string;    // 罰單掃描檔連結
 }
 
 export interface FineList {

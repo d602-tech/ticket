@@ -4,7 +4,8 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import { Fine, Project, FineList, Section, Violation, ViolationStatus } from '../types';
-import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle } from 'lucide-react';
+import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle, ExternalLink, FileUp } from 'lucide-react';
+import { callGasApi } from '../services/apiService';
 import { syncData } from '../services/storageService';
 import { formatDate, addDays } from '../utils';
 import * as XLSX from 'xlsx';
@@ -28,6 +29,8 @@ interface TicketGroup {
     projectName: string;
     items: Fine[];
     totalAmount: number;
+    scanFileName?: string;
+    scanFileUrl?: string;
 }
 
 export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation }: FineStatsProps) {
@@ -356,7 +359,9 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 ticketType: first.ticketType,
                 cctvType: first.cctvType,
                 allocation: first.allocation,
-                note: first.note
+                note: first.note,
+                scanFileName: first.scanFileName,
+                scanFileUrl: first.scanFileUrl
             });
             setTicketItems(items);
             setIsEditing(true);
@@ -470,6 +475,48 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         reader.readAsBinaryString(file);
     };
 
+    // Upload Fine Scan File
+    const handleUploadFineScan = async (ticketNumber: string) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            setIsSaving(true);
+            try {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const base64 = (reader.result as string).split(',')[1];
+                        const result = await callGasApi({
+                            action: 'uploadFineScan',
+                            ticketNumber,
+                            fileData: base64,
+                            fileName: `罰單掃描_${ticketNumber}_${file.name}`,
+                            mimeType: file.type
+                        });
+                        if (result.success && result.fines) {
+                            onSaveFines(result.fines);
+                            alert('掃描檔上傳成功');
+                        } else {
+                            alert('上傳失敗: ' + (result.error || '未知錯誤'));
+                        }
+                    } catch (err) {
+                        alert('上傳失敗: ' + (err as Error).message);
+                    } finally {
+                        setIsSaving(false);
+                    }
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                alert('讀取檔案失敗');
+                setIsSaving(false);
+            }
+        };
+        input.click();
+    };
+
     // Grouping by Ticket for management view
     const tickets = useMemo(() => {
         const groups: Record<string, TicketGroup> = {};
@@ -481,13 +528,18 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     date: f.date || '',
                     projectName: f.projectName || '',
                     items: [],
-                    totalAmount: 0 // Will recalc from items just to be sure
+                    totalAmount: 0,
+                    scanFileName: f.scanFileName,
+                    scanFileUrl: f.scanFileUrl
                 };
             }
             groups[tNo].items.push(f);
-            // Use subtotal sum to be accurate per query "Total Amount in DB missing sum"
-            // The display here is just SUM(subtotals)
             groups[tNo].totalAmount += (Number(f.subtotal) || 0);
+            // Keep scan file from any item in the group
+            if (f.scanFileUrl && !groups[tNo].scanFileUrl) {
+                groups[tNo].scanFileName = f.scanFileName;
+                groups[tNo].scanFileUrl = f.scanFileUrl;
+            }
         });
         return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [fines]);
@@ -720,6 +772,31 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                         </div>
                     </div>
 
+                    {/* 罰單掃描檔上傳 */}
+                    {currentTicket.ticketNumber && (
+                        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileUp size={18} className="text-amber-600" />
+                                <span className="text-sm font-medium text-amber-800">罰單掃描檔</span>
+                                {currentTicket.scanFileUrl ? (
+                                    <a href={currentTicket.scanFileUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 font-medium underline"
+                                    >
+                                        <ExternalLink size={14} /> {currentTicket.scanFileName || '檢視掃描檔'}
+                                    </a>
+                                ) : (
+                                    <span className="text-xs text-amber-600">尚未上傳</span>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleUploadFineScan(currentTicket.ticketNumber!)}
+                                className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                                <Upload size={14} /> {currentTicket.scanFileUrl ? '重新上傳' : '上傳掃描檔'}
+                            </button>
+                        </div>
+                    )}
                     {/* Fine Items Input Area */}
                     <div className="p-4 bg-indigo-50 border-b border-indigo-100">
                         <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2">
@@ -867,6 +944,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 <th className="px-4 py-3">工程名稱</th>
                                 <th className="px-4 py-3 text-center">細項數</th>
                                 <th className="px-4 py-3 text-right">總金額</th>
+                                <th className="px-4 py-3 text-center">掃描檔</th>
                                 <th className="px-4 py-3 text-right">操作</th>
                             </tr>
                         </thead>
@@ -880,6 +958,31 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                         <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{t.items.length}</span>
                                     </td>
                                     <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                                        {t.scanFileUrl ? (
+                                            <div className="flex items-center justify-center gap-1">
+                                                <a href={t.scanFileUrl} target="_blank" rel="noopener noreferrer"
+                                                    className="text-indigo-600 hover:text-indigo-800 text-xs flex items-center gap-1 font-medium"
+                                                    title={t.scanFileName}
+                                                >
+                                                    <ExternalLink size={14} /> 檢視
+                                                </a>
+                                                <button
+                                                    onClick={() => handleUploadFineScan(t.ticketNumber)}
+                                                    className="text-slate-400 hover:text-amber-600 text-xs ml-1" title="重新上傳"
+                                                >
+                                                    <Upload size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleUploadFineScan(t.ticketNumber)}
+                                                className="text-slate-400 hover:text-indigo-600 flex items-center gap-1 text-xs mx-auto transition-colors"
+                                            >
+                                                <FileUp size={14} /> 上傳
+                                            </button>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={(e) => { e.stopPropagation(); handleEditTicket(t.ticketNumber); }} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
@@ -889,7 +992,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 </tr>
                             ))}
                             {tickets.length === 0 && (
-                                <tr><td colSpan={6} className="p-8 text-center text-slate-400">目前沒有資料，請點擊「新增罰單」建立第一筆資料。</td></tr>
+                                <tr><td colSpan={7} className="p-8 text-center text-slate-400">目前沒有資料，請點擊「新增罰單」建立第一筆資料。</td></tr>
                             )}
                         </tbody>
                     </table>
