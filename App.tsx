@@ -1631,7 +1631,7 @@ function App() {
                     <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30 text-sm">
                         SG
                     </div>
-                    <span className="text-white font-bold text-lg tracking-tight">違規講習登錄表</span>
+                    <span className="text-white font-bold text-lg tracking-tight">罰款暨違規講習登入表</span>
                     <button
                         onClick={() => setIsSidebarOpen(false)}
                         className="ml-auto md:hidden text-slate-400 hover:text-white"

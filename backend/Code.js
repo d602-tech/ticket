@@ -113,7 +113,36 @@ function handleRequest(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // === 自動初始化功能 (使用中文標題) ===
+    var output = {};
+
+    // 處理 POST 請求 — 先處理登入等輕量操作，避免不必要的初始化
+    if (e && e.postData) {
+      var data = JSON.parse(e.postData.contents);
+
+      // ========== 登入驗證 (快速路徑，不需初始化) ==========
+      if (data.action === 'login') {
+        output = handleLogin(ss, data.username, data.password);
+        return jsonOutput(output);
+      }
+
+      // ========== Google 登入 (快速路徑) ==========
+      if (data.action === 'googleLogin') {
+        output = handleGoogleLogin(ss, data.credential);
+        return jsonOutput(output);
+      }
+
+      // ========== 取得使用者列表 (快速路徑) ==========
+      if (data.action === 'getUsers') {
+        if (data.adminRole !== 'admin') {
+          return jsonOutput({ success: false, error: '無權限' });
+        }
+        output.users = loadData(ss, 'Users');
+        output.success = true;
+        return jsonOutput(output);
+      }
+    }
+
+    // === 自動初始化功能 (僅在非登入操作時執行) ===
     initSheetWithMap(ss, 'Projects');
     initSheetWithMap(ss, 'Violations');
     initSheetWithMap(ss, 'Users');
@@ -125,35 +154,9 @@ function handleRequest(e) {
     // 建立預設管理員帳號
     initDefaultAdmin(ss);
 
-    var output = {};
-
-    // 處理 POST 請求
+    // 處理其他 POST 請求
     if (e && e.postData) {
       var data = JSON.parse(e.postData.contents);
-
-      // ========== 登入驗證 ==========
-      if (data.action === 'login') {
-        output = handleLogin(ss, data.username, data.password);
-        return jsonOutput(output);
-      }
-
-      // ========== Google 登入 ==========
-      if (data.action === 'googleLogin') {
-        output = handleGoogleLogin(ss, data.credential);
-        return jsonOutput(output);
-      }
-
-      // ========== 取得使用者列表 (Admin Only) ==========
-      if (data.action === 'getUsers') {
-        // 簡單驗證 (實際應驗證 Token，但此處簡化檢查是否提供 adminRole)
-        // 注意：前端需傳入 adminRole: 'admin'
-        if (data.adminRole !== 'admin') {
-          return jsonOutput({ success: false, error: '無權限' });
-        }
-        output.users = loadData(ss, 'Users');
-        output.success = true;
-        return jsonOutput(output);
-      }
 
       // ========== 新增使用者 (Admin Only) ==========
       if (data.action === 'addUser') {
