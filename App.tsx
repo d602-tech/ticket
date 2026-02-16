@@ -1769,7 +1769,7 @@ function App() {
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'ADMIN' && renderUserManagement()}
                 {view === 'USERS' && renderUserManagement()}
-                {view === 'PERSONNEL' && <PersonnelManagement sections={sections} onSaveSections={setSections} />}
+                {view === 'PERSONNEL' && <PersonnelManagement sections={sections} onSaveSections={setSections} syncService={syncData} />}
             </main>
 
             <ViolationModal
