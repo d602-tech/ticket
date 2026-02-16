@@ -303,7 +303,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 projectName: currentTicket.projectName,
                 violationDate: currentTicket.date,
                 lectureDeadline: addDays(currentTicket.date, 32),
-                deadline: addDays(currentTicket.date, 3), // Deadline for response? Added for consistency if needed or just use lectureDeadline
+
                 description: `罰款單號: ${currentTicket.ticketNumber} - 總金額: ${calculatedTicketTotal.toLocaleString()}元。` +
                     ticketItems.map(i => `\n- ${i.violationItem}`).join(''),
                 status: ViolationStatus.PENDING,
