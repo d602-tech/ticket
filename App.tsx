@@ -1152,7 +1152,7 @@ function App() {
                                 <div>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${user.role === 'admin' ? 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200'}`}>
-                                            {user.name.charAt(0).toUpperCase()}
+                                            {user.name ? user.name.charAt(0).toUpperCase() : '?'}
                                         </div>
                                         {user.role === 'admin' && (
                                             <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-medium border border-indigo-100">
@@ -1160,8 +1160,8 @@ function App() {
                                             </span>
                                         )}
                                     </div>
-                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{user.name}</h3>
-                                    <p className="text-slate-500 text-sm font-mono break-all">{user.email}</p>
+                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{user.name || '(無名稱)'}</h3>
+                                    <p className="text-slate-500 text-sm font-mono break-all">{user.email || '(無信箱)'}</p>
 
                                     <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
                                         <span>Role: {user.role}</span>

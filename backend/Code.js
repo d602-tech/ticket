@@ -118,9 +118,6 @@ function handleRequest(e) {
     initSheetWithMap(ss, 'Violations');
     initSheetWithMap(ss, 'Users');
     initSheetWithMap(ss, 'NotificationLogs');
-    initSheetWithMap(ss, 'Violations');
-    initSheetWithMap(ss, 'Users');
-    initSheetWithMap(ss, 'NotificationLogs');
     initSheetWithMap(ss, 'Fine');
     initSheetWithMap(ss, 'FineList');
     initSheetWithMap(ss, 'Section');
