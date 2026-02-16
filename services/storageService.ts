@@ -46,6 +46,23 @@ export const fetchInitialData = async (): Promise<{
     }
 };
 
+// 獨立取得使用者列表
+export const fetchUsers = async (adminRole: string): Promise<User[]> => {
+    try {
+        const response = await callGasApi({
+            action: 'getUsers',
+            adminRole
+        });
+        if (response.success && response.users) {
+            return response.users;
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch users:", error);
+        return [];
+    }
+};
+
 // 同步所有資料到後端 (含檔案上傳處理)
 export const syncData = async (
     projects?: Project[],
