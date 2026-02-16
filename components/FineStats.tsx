@@ -1,64 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell
 } from 'recharts';
 import { Fine } from '../types';
-import { Loader2 } from 'lucide-react';
-import { getApiUrl } from '../services/apiService';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 
 interface FineStatsProps {
     projects: any[]; // Assuming we might filter by projects later
+    fines: Fine[];
 }
 
-export function FineStats({ projects }: FineStatsProps) {
-    const [fines, setFines] = useState<Fine[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        fetchFineData();
-    }, []);
-
-    const fetchFineData = async () => {
-        setIsLoading(true);
-        try {
-            // Note: We need to update loadData in App.tsx or fetch individually here.
-            // For now, assuming syncing or specific fetch. 
-            // Since backend doGet returns output.fines if added, but current Code.js implementation 
-            // for doGet does NOT explicitly return 'fines'. 
-            // However, the user wants "Statistics", so I will fetch 'Fine' sheet data using a simplified action if available,
-            // or just load all data. 
-            // Wait, in previous step I added `// output.fines = loadData(ss, 'Fine');` commented out.
-            // I should have uncommented it. 
-            // I will assume for now the user will uncomment it or I will handle it via a separate 'loadFines' action if I modify backend again.
-            // Actually, I can use the same `sync` action to just read? No.
-
-            // To make this work immediately without complex backend edits, I'll rely on the main `doGet` returning it.
-            // BUT I commented it out in Code.js. "output.fines = ...".
-            // Implementation Strategy: 
-            // Since I cannot change backend instantly again within this file creaton step,
-            // I will write this component to expect `fineData` passed from App, or fetch it.
-            // Let's implement a direct fetch here assuming the backend returns it.
-
-            // Re-reading Code.js change: I left `output.fines` commented out. 
-            // I MUST FIX BACKEND to return fines, or this component will be empty.
-            // I will assume I will fix backend in next step.
-
-            const response = await fetch(getApiUrl()!);
-            const data = await response.json();
-            if (data.fines) {
-                setFines(data.fines);
-            }
-        } catch (e) {
-            setError('無法讀取罰款資料');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+export function FineStats({ projects, fines }: FineStatsProps) {
     // --- Statistics Logic ---
 
     // 1. By Project
@@ -83,7 +37,14 @@ export function FineStats({ projects }: FineStatsProps) {
 
     // 3. By Month (using issueDate or date)
     const finesByMonth = fines.reduce((acc, curr) => {
-        const d = curr.date ? new Date(curr.date) : new Date();
+        // Try getting date from various fields if needed, assuming 'date' is reliable from backend.
+        // Backend maps 'date' to '開罰日期'.
+        const dateStr = curr.date || curr.issueDate;
+        const d = dateStr ? new Date(dateStr) : new Date();
+
+        // Handle potential invalid dates
+        if (isNaN(d.getTime())) return acc;
+
         const key = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
         if (!acc[key]) acc[key] = 0;
         acc[key] += (Number(curr.subtotal) || 0);
@@ -93,8 +54,6 @@ export function FineStats({ projects }: FineStatsProps) {
     const monthData = Object.entries(finesByMonth)
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([name, value]) => ({ name, value }));
-
-    if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
     return (
         <div className="space-y-6">

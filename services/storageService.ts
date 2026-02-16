@@ -1,4 +1,4 @@
-import { Violation, Project } from '../types';
+import { Violation, Project, Fine } from '../types';
 import { callGasApi } from './apiService';
 
 export const COMMON_VIOLATIONS = [
@@ -17,14 +17,16 @@ export const COMMON_VIOLATIONS = [
 // 初始假資料
 const MOCK_PROJECTS: Project[] = [];
 const MOCK_VIOLATIONS: Violation[] = [];
+const MOCK_FINES: Fine[] = [];
 
 // 取得初始資料
-export const fetchInitialData = async (): Promise<{ projects: Project[], violations: Violation[] }> => {
+export const fetchInitialData = async (): Promise<{ projects: Project[], violations: Violation[], fines: Fine[] }> => {
     try {
         const data = await callGasApi({});
         return {
             projects: data.projects || MOCK_PROJECTS,
-            violations: data.violations || MOCK_VIOLATIONS
+            violations: data.violations || MOCK_VIOLATIONS,
+            fines: data.fines || MOCK_FINES
         };
     } catch (error) {
         console.error("Failed to fetch data from GAS:", error);
@@ -42,7 +44,7 @@ export const syncData = async (
         projectInfo?: { sequence: number | string, abbreviation: string },
         violationDate?: string
     }
-): Promise<{ projects: Project[], violations: Violation[] }> => {
+): Promise<{ projects: Project[], violations: Violation[], fines: Fine[] }> => {
     try {
         const payload: any = { action: 'sync' };
         if (projects) payload.projects = projects;
@@ -68,7 +70,8 @@ export const syncData = async (
         // 後端會回傳更新後的最新資料
         return {
             projects: response.projects || [],
-            violations: response.violations || []
+            violations: response.violations || [],
+            fines: response.fines || []
         };
     } catch (error) {
         console.error("Sync failed:", error);
@@ -78,5 +81,6 @@ export const syncData = async (
 
 export const getProjects = (): Project[] => MOCK_PROJECTS;
 export const getViolations = (): Violation[] => MOCK_VIOLATIONS;
+export const getFines = (): Fine[] => MOCK_FINES;
 export const saveProjects = (p: Project[]) => { };
 export const saveViolations = (v: Violation[]) => { };

@@ -34,6 +34,32 @@ export interface Violation {
   completionDate?: string; // 完成日期 YYYY-MM-DD
 }
 
+export interface Fine {
+  seq?: string;            // 序號
+  date?: string;           // 開罰日期
+  issueDate?: string;      // 發文日期
+  ticketNumber?: string;   // 罰單編號
+  projectName?: string;    // 工程名稱
+  hostTeam?: string;       // 主辦工作隊
+  issuer?: string;         // 開單人
+  contractor?: string;     // 承攬商
+  violationItem?: string;  // 違規項目
+  unitPrice?: number | string;      // 單價
+  unitPriceAdj?: number | string;   // 單價修改
+  unitPriceAdjNote?: string;// 單價修改備註
+  count?: number | string;          // 件數
+  multiplier?: number | string;     // 倍數
+  subtotal?: number | string;       // 單項金額
+  cctvType?: string;       // CCTV缺失種類
+  totalAmount?: number | string;    // 總金額
+  amountNote?: string;     // 罰單金額備註
+  lectureDate?: string;    // 違規講習日期
+  note?: string;           // 備註
+  ticketType?: string;     // 開單類型
+  supervisor?: string;     // 督導人
+  allocation?: string;     // 忠哥辦理罰單分配
+}
+
 export interface Project {
   id: string;
   sequence: number;       // 序號
@@ -49,9 +75,7 @@ export interface Project {
 }
 
 export interface User {
-  email: string;
-  name: string;
-  role: string;
+  // ... existing code ...
   password?: string;
 }
 
@@ -63,4 +87,4 @@ export interface Coordinator {
   email: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'PROJECTS' | 'ADMIN';
+export type ViewState = 'DASHBOARD' | 'VIOLATIONS' | 'PROJECTS' | 'ADMIN' | 'FINE_STATS';
