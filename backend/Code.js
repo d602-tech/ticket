@@ -118,7 +118,12 @@ function handleRequest(e) {
     initSheetWithMap(ss, 'Violations');
     initSheetWithMap(ss, 'Users');
     initSheetWithMap(ss, 'NotificationLogs');
-    // Fine System 初始化由 setupFineSystem 處理，避免每次 Request 都跑複雜邏輯
+    initSheetWithMap(ss, 'Violations');
+    initSheetWithMap(ss, 'Users');
+    initSheetWithMap(ss, 'NotificationLogs');
+    initSheetWithMap(ss, 'Fine');
+    initSheetWithMap(ss, 'FineList');
+    initSheetWithMap(ss, 'Section');
 
     // 建立預設管理員帳號
     initDefaultAdmin(ss);
@@ -357,6 +362,12 @@ function handleRequest(e) {
         if (data.violations) {
           saveData(ss, 'Violations', data.violations);
         }
+        if (data.violations) {
+          saveData(ss, 'Violations', data.violations);
+        }
+        if (data.fines) {
+          saveData(ss, 'Fine', data.fines);
+        }
         output.success = true;
       }
     }
@@ -366,6 +377,8 @@ function handleRequest(e) {
     output.violations = loadData(ss, 'Violations');
     // New: 回傳 Fine 資料供前端統計使用
     output.fines = loadData(ss, 'Fine');
+    output.fineList = loadData(ss, 'FineList');
+    output.sections = loadData(ss, 'Section');
 
     return jsonOutput(output);
 

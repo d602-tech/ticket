@@ -60,6 +60,23 @@ export interface Fine {
   allocation?: string;     // 忠哥辦理罰單分配
 }
 
+export interface FineList {
+  seq?: string;
+  itemIndex?: string;      // 項次
+  violationItem?: string;  // 違規項目
+  shortContent?: string;   // 縮短內容
+  amount?: number | string;// 金額
+  type?: string;           // 種類
+  unit?: string;           // 單位
+}
+
+export interface Section {
+  hostTeam?: string;       // 主辦工作隊
+  title?: string;          // 職稱
+  name?: string;           // 姓名
+  email?: string;          // 信箱
+}
+
 export interface Project {
   id: string;
   sequence: number;       // 序號

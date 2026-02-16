@@ -1,4 +1,4 @@
-import { Violation, Project, Fine } from '../types';
+import { Violation, Project, Fine, FineList, Section } from '../types';
 import { callGasApi } from './apiService';
 
 export const COMMON_VIOLATIONS = [
@@ -18,15 +18,25 @@ export const COMMON_VIOLATIONS = [
 const MOCK_PROJECTS: Project[] = [];
 const MOCK_VIOLATIONS: Violation[] = [];
 const MOCK_FINES: Fine[] = [];
+const MOCK_FINE_LIST: FineList[] = [];
+const MOCK_SECTIONS: Section[] = [];
 
 // 取得初始資料
-export const fetchInitialData = async (): Promise<{ projects: Project[], violations: Violation[], fines: Fine[] }> => {
+export const fetchInitialData = async (): Promise<{
+    projects: Project[],
+    violations: Violation[],
+    fines: Fine[],
+    fineList: FineList[],
+    sections: Section[]
+}> => {
     try {
         const data = await callGasApi({});
         return {
             projects: data.projects || MOCK_PROJECTS,
             violations: data.violations || MOCK_VIOLATIONS,
-            fines: data.fines || MOCK_FINES
+            fines: data.fines || MOCK_FINES,
+            fineList: data.fineList || MOCK_FINE_LIST,
+            sections: data.sections || MOCK_SECTIONS
         };
     } catch (error) {
         console.error("Failed to fetch data from GAS:", error);
@@ -43,13 +53,20 @@ export const syncData = async (
         fileData: { name: string, type: string, base64: string },
         projectInfo?: { sequence: number | string, abbreviation: string },
         violationDate?: string
-    }
-): Promise<{ projects: Project[], violations: Violation[], fines: Fine[] }> => {
+    },
+    fines?: Fine[]
+): Promise<{
+    projects: Project[],
+    violations: Violation[],
+    fines: Fine[],
+    fineList: FineList[],
+    sections: Section[]
+}> => {
     try {
         const payload: any = { action: 'sync' };
         if (projects) payload.projects = projects;
         if (violations) payload.violations = violations;
-
+        if (fines) payload.fines = fines; // Support saving fines
         // 如果有檔案需要上傳
         if (fileUpload) {
             payload.fileUpload = fileUpload;
@@ -71,7 +88,9 @@ export const syncData = async (
         return {
             projects: response.projects || [],
             violations: response.violations || [],
-            fines: response.fines || []
+            fines: response.fines || [],
+            fineList: response.fineList || [],
+            sections: response.sections || []
         };
     } catch (error) {
         console.error("Sync failed:", error);

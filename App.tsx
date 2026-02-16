@@ -30,7 +30,7 @@ import {
 import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { Violation, Project, ViewState, ViolationStatus, Coordinator, User, Fine } from './types';
+import { Violation, Project, ViewState, ViolationStatus, Coordinator, User, Fine, FineList, Section } from './types';
 import { fetchInitialData, syncData } from './services/storageService';
 import { getApiUrl } from './services/apiService';
 import { formatDate, getDaysRemaining, generateId } from './utils';
@@ -48,6 +48,8 @@ function App() {
     const [violations, setViolations] = useState<Violation[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [fines, setFines] = useState<Fine[]>([]);
+    const [fineList, setFineList] = useState<FineList[]>([]);
+    const [sections, setSections] = useState<Section[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Sidebar State
 
@@ -90,6 +92,8 @@ function App() {
             setProjects(data.projects);
             setViolations(data.violations);
             setFines(data.fines);
+            setFineList(data.fineList);
+            setSections(data.sections);
         } catch (e) {
             alert('連線失敗，請檢查 API URL 是否正確。');
         } finally {
@@ -1367,7 +1371,7 @@ function App() {
 
                 {view === 'DASHBOARD' && renderDashboard()}
                 {view === 'VIOLATIONS' && renderViolationList()}
-                {view === 'FINE_STATS' && <FineStats projects={projects} fines={fines} />}
+                {view === 'FINE_STATS' && <FineStats projects={projects} fines={fines} fineList={fineList} sections={sections} onSaveFines={setFines} />}
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'ADMIN' && renderUserManagement()}
             </main>
