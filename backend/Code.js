@@ -143,6 +143,18 @@ function handleRequest(e) {
         return jsonOutput(output);
       }
 
+      // ========== 取得使用者列表 (Admin Only) ==========
+      if (data.action === 'getUsers') {
+        // 簡單驗證 (實際應驗證 Token，但此處簡化檢查是否提供 adminRole)
+        // 注意：前端需傳入 adminRole: 'admin'
+        if (data.adminRole !== 'admin') {
+          return jsonOutput({ success: false, error: '無權限' });
+        }
+        output.users = loadData(ss, 'Users');
+        output.success = true;
+        return jsonOutput(output);
+      }
+
       // ========== 新增使用者 (Admin Only) ==========
       if (data.action === 'addUser') {
         if (data.adminRole !== 'admin') {
@@ -381,7 +393,6 @@ function handleRequest(e) {
     output.fines = loadData(ss, 'Fine');
     output.fineList = loadData(ss, 'FineList');
     output.sections = loadData(ss, 'Section');
-    output.users = loadData(ss, 'Users'); // Add users to output
 
     return jsonOutput(output);
 

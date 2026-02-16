@@ -32,7 +32,7 @@ import {
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import { Violation, Project, ViewState, ViolationStatus, Coordinator, User, Fine, FineList, Section } from './types';
-import { fetchInitialData, syncData } from './services/storageService';
+import { fetchInitialData, syncData, fetchUsers } from './services/storageService';
 import { getApiUrl } from './services/apiService';
 import { formatDate, getDaysRemaining, generateId } from './utils';
 import { StatCard } from './components/StatCard';
@@ -60,6 +60,24 @@ function App() {
     const [users, setUsers] = useState<User[]>([]);
     const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
     const [currentUserRole, setCurrentUserRole] = useState<string>(''); // Current logged in user role
+    const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = previous (Viewer Dashboard)
+
+    // Fetch users when role becomes admin
+    useEffect(() => {
+        if (currentUserRole === 'admin') {
+            refreshUsers();
+        }
+    }, [currentUserRole]);
+
+    const refreshUsers = async () => {
+        try {
+            // Import fetchUsers dynamically or assume it's available
+            const userList = await fetchUsers('admin');
+            setUsers(userList);
+        } catch (e) {
+            console.error('Fetch users failed', e);
+        }
+    };
 
     // Modal States
     const [isViolationModalOpen, setViolationModalOpen] = useState(false);
@@ -98,7 +116,6 @@ function App() {
             setFines(data.fines);
             setFineList(data.fineList);
             setSections(data.sections);
-            setUsers(data.users);
         } catch (e) {
             alert('連線失敗，請檢查 API URL 是否正確。');
         } finally {
@@ -542,7 +559,7 @@ function App() {
     const COLORS_CONTRACTOR = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
 
     const renderViewerDashboard = () => {
-        const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // 0 = current, -1 = previous
+        // selectedMonthOffset is now a top-level state
 
         const targetDate = new Date();
         targetDate.setMonth(targetDate.getMonth() + selectedMonthOffset);
