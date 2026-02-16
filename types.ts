@@ -47,6 +47,8 @@ export interface Fine {
   unitPrice?: number | string;      // 單價
   unitPriceAdj?: number | string;   // 單價修改
   unitPriceAdjNote?: string;// 單價修改備註
+  priceAdjustmentReason?: string; // 單價修改原因
+  relationship?: string;   // 關係 (預設: 舊約)
   count?: number | string;          // 件數
   multiplier?: number | string;     // 倍數
   subtotal?: number | string;       // 單項金額
