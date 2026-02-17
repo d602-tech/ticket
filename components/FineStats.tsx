@@ -586,427 +586,427 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 groups[tNo].scanFileUrl = f.scanFileUrl;
             }
         });
-    });
 
-    let result = Object.values(groups);
 
-    // Filter
-    if (projectFilter !== 'ALL') {
-        result = result.filter(g => g.projectName === projectFilter);
-    }
+        let result = Object.values(groups);
 
-    // Sort
-    result.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-            return sortConfig.direction === 'ascending' ? -1 : 1;
+        // Filter
+        if (projectFilter !== 'ALL') {
+            result = result.filter(g => g.projectName === projectFilter);
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-            return sortConfig.direction === 'ascending' ? 1 : -1;
+
+        // Sort
+        result.sort((a, b) => {
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return result;
+    }, [fines, projectFilter, sortConfig]);
+
+    const requestSort = (key: keyof TicketGroup) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
         }
-        return 0;
-    });
+        setSortConfig({ key, direction });
+    };
 
-    return result;
-}, [fines, projectFilter, sortConfig]);
+    // Stats Render Logic
+    const renderStats = () => {
+        // 1. By Project (Using Abbreviation)
+        const finesByProject = fines.reduce((acc, curr) => {
+            // Find project to get abbr
+            const proj = projects.find(p => p.name === curr.projectName);
+            const name = proj ? proj.abbreviation : (curr.projectName || '未分類');
 
-const requestSort = (key: keyof TicketGroup) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-        direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-};
+            if (!acc[name]) acc[name] = 0;
+            acc[name] += (Number(curr.subtotal) || 0);
+            return acc;
+        }, {} as Record<string, number>);
 
-// Stats Render Logic
-const renderStats = () => {
-    // 1. By Project (Using Abbreviation)
-    const finesByProject = fines.reduce((acc, curr) => {
-        // Find project to get abbr
-        const proj = projects.find(p => p.name === curr.projectName);
-        const name = proj ? proj.abbreviation : (curr.projectName || '未分類');
+        const projectData = Object.entries(finesByProject).map(([name, value]) => ({ name, value }));
 
-        if (!acc[name]) acc[name] = 0;
-        acc[name] += (Number(curr.subtotal) || 0);
-        return acc;
-    }, {} as Record<string, number>);
+        // 2. By Host Team
+        const finesByTeam = fines.reduce((acc, curr) => {
+            const team = curr.hostTeam || '未分類';
+            if (!acc[team]) acc[team] = 0;
+            acc[team] += (Number(curr.subtotal) || 0);
+            return acc;
+        }, {} as Record<string, number>);
 
-    const projectData = Object.entries(finesByProject).map(([name, value]) => ({ name, value }));
+        const teamData = Object.entries(finesByTeam).map(([name, value]) => ({ name, value }));
 
-    // 2. By Host Team
-    const finesByTeam = fines.reduce((acc, curr) => {
-        const team = curr.hostTeam || '未分類';
-        if (!acc[team]) acc[team] = 0;
-        acc[team] += (Number(curr.subtotal) || 0);
-        return acc;
-    }, {} as Record<string, number>);
+        // 3. By Month
+        const finesByMonth = fines.reduce((acc, curr) => {
+            const dateStr = curr.date || curr.issueDate;
+            const d = dateStr ? new Date(dateStr) : new Date();
+            if (isNaN(d.getTime())) return acc;
+            const key = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!acc[key]) acc[key] = 0;
+            acc[key] += (Number(curr.subtotal) || 0);
+            return acc;
+        }, {} as Record<string, number>);
 
-    const teamData = Object.entries(finesByTeam).map(([name, value]) => ({ name, value }));
+        const monthData = Object.entries(finesByMonth)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([name, value]) => ({ name, value }));
 
-    // 3. By Month
-    const finesByMonth = fines.reduce((acc, curr) => {
-        const dateStr = curr.date || curr.issueDate;
-        const d = dateStr ? new Date(dateStr) : new Date();
-        if (isNaN(d.getTime())) return acc;
-        const key = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-        if (!acc[key]) acc[key] = 0;
-        acc[key] += (Number(curr.subtotal) || 0);
-        return acc;
-    }, {} as Record<string, number>);
-
-    const monthData = Object.entries(finesByMonth)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([name, value]) => ({ name, value }));
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="text-slate-500 text-sm font-medium">總罰款金額</h3>
-                    <p className="text-3xl font-bold text-red-600 mt-2">
-                        ${fines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0).toLocaleString()}
-                    </p>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="text-slate-500 text-sm font-medium">總開單件數</h3>
-                    <p className="text-3xl font-bold text-slate-800 mt-2">
-                        {fines.length} 件
-                    </p>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="text-slate-500 text-sm font-medium">本月罰款</h3>
-                    <p className="text-3xl font-bold text-indigo-600 mt-2">
-                        ${monthData.find(d => d.name === `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`)?.value.toLocaleString() || 0}
-                    </p>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="font-bold text-slate-700 mb-4">各工程罰款統計 (簡稱)</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={projectData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                <XAxis type="number" />
-                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
-                                <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                                <Bar dataKey="value" fill="#8884d8" name="金額" radius={[0, 4, 4, 0]}>
-                                    {projectData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="font-bold text-slate-700 mb-4">各工作隊罰款統計</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={teamData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                >
-                                    {teamData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-};
-
-const renderManage = () => {
-    if (isEditing) {
         return (
-            <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 animate-in zoom-in-95 duration-200">
-                {/* Ticket Header Inputs */}
-                <div className="border-b border-slate-100 p-4 bg-slate-50 rounded-t-xl">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-slate-700">罰單基本資料</h3>
-                        <div className="flex items-center gap-4">
-                            <div className="text-xl font-bold text-red-600">
-                                自計總額: ${calculatedTicketTotal.toLocaleString()}
-                            </div>
-                            {showValidationAlert && (
-                                <button
-                                    onClick={handleConvertToViolation}
-                                    className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold hover:bg-red-200 transition-colors animate-pulse"
-                                >
-                                    <ArrowRightCircle size={16} /> 轉換違規紀錄
-                                </button>
-                            )}
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 className="text-slate-500 text-sm font-medium">總罰款金額</h3>
+                        <p className="text-3xl font-bold text-red-600 mt-2">
+                            ${fines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0).toLocaleString()}
+                        </p>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 className="text-slate-500 text-sm font-medium">總開單件數</h3>
+                        <p className="text-3xl font-bold text-slate-800 mt-2">
+                            {fines.length} 件
+                        </p>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 className="text-slate-500 text-sm font-medium">本月罰款</h3>
+                        <p className="text-3xl font-bold text-indigo-600 mt-2">
+                            ${monthData.find(d => d.name === `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`)?.value.toLocaleString() || 0}
+                        </p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 className="font-bold text-slate-700 mb-4">各工程罰款統計 (簡稱)</h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={projectData} layout="vertical">
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                    <XAxis type="number" />
+                                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
+                                    <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                                    <Bar dataKey="value" fill="#8884d8" name="金額" radius={[0, 4, 4, 0]}>
+                                        {projectData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">罰單編號 *</label>
-                            <input type="text" className="w-full p-2 border rounded-lg"
-                                value={currentTicket.ticketNumber || ''}
-                                onChange={e => setCurrentTicket({ ...currentTicket, ticketNumber: e.target.value })}
-                                placeholder="輸入罰單編號"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">開罰日期 *</label>
-                            <input type="date" className="w-full p-2 border rounded-lg"
-                                value={currentTicket.date || ''}
-                                onChange={e => setCurrentTicket({ ...currentTicket, date: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">發文日期</label>
-                            <input type="date" className="w-full p-2 border rounded-lg"
-                                value={currentTicket.issueDate || ''}
-                                onChange={e => setCurrentTicket({ ...currentTicket, issueDate: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="md:col-span-3">
-                            <label className="block text-sm font-medium text-slate-700 mb-1">工程名稱 (序號+簡稱) *</label>
-                            <select className="w-full p-2 border rounded-lg font-mono"
-                                value={currentTicket.projectName || ''}
-                                onChange={e => setCurrentTicket({ ...currentTicket, projectName: e.target.value })}
-                            >
-                                <option value="">請選擇工程...</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.name}>
-                                        {String(p.sequence).padStart(3, '0')} - {p.abbreviation}
-                                    </option>
-                                ))}
-                            </select>
-                            {currentTicket.projectName && (
-                                <div className="mt-1 text-sm text-slate-500 pl-2 border-l-2 border-slate-300">
-                                    {currentTicket.projectName}
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊</label>
-                            <div className="p-2 bg-slate-100 rounded-lg text-slate-600 text-sm h-10 flex items-center">
-                                {currentTicket.hostTeam || '-'}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">開單人 *</label>
-                            <select className="w-full p-2 border rounded-lg"
-                                value={currentTicket.issuer || ''}
-                                onChange={e => setCurrentTicket({ ...currentTicket, issuer: e.target.value })}
-                            >
-                                <option value="">請選擇...</option>
-                                {availableIssuers.map((s, idx) => (
-                                    <option key={idx} value={s.name}>{s.name} ({s.title})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">CCTV 缺失種類</label>
-                            <select className="w-full p-2 border rounded-lg" value={currentTicket.cctvType || ''} onChange={e => setCurrentTicket({ ...currentTicket, cctvType: e.target.value })}>
-                                <option value="">請選擇</option>
-                                {cctvTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">開單類型</label>
-                            <select className="w-full p-2 border rounded-lg" value={currentTicket.ticketType || ''} onChange={e => setCurrentTicket({ ...currentTicket, ticketType: e.target.value })}>
-                                <option value="">請選擇</option>
-                                {ticketTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">督導人</label>
-                            <input type="text" className="w-full p-2 border rounded-lg" value={currentTicket.supervisor || ''} onChange={e => setCurrentTicket({ ...currentTicket, supervisor: e.target.value })} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">忠哥分配</label>
-                            <select className="w-full p-2 border rounded-lg" value={currentTicket.allocation || ''} onChange={e => setCurrentTicket({ ...currentTicket, allocation: e.target.value })}>
-                                <option value="">請選擇</option>
-                                {allocTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <div className="md:col-span-3">
-                            <label className="block text-sm font-medium text-slate-700 mb-1">備註</label>
-                            <input type="text" className="w-full p-2 border rounded-lg" value={currentTicket.note || ''} onChange={e => setCurrentTicket({ ...currentTicket, note: e.target.value })} />
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 className="font-bold text-slate-700 mb-4">各工作隊罰款統計</h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={teamData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    >
+                                        {teamData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                                </PieChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
+            </div>
+        )
+    };
 
-                {/* 罰單掃描檔上傳 */}
-                {currentTicket.ticketNumber && (
-                    <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <FileUp size={18} className="text-amber-600" />
-                            <span className="text-sm font-medium text-amber-800">罰單掃描檔</span>
-                            {currentTicket.scanFileUrl ? (
-                                <a href={currentTicket.scanFileUrl} target="_blank" rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 font-medium underline"
+    const renderManage = () => {
+        if (isEditing) {
+            return (
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 animate-in zoom-in-95 duration-200">
+                    {/* Ticket Header Inputs */}
+                    <div className="border-b border-slate-100 p-4 bg-slate-50 rounded-t-xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-slate-700">罰單基本資料</h3>
+                            <div className="flex items-center gap-4">
+                                <div className="text-xl font-bold text-red-600">
+                                    自計總額: ${calculatedTicketTotal.toLocaleString()}
+                                </div>
+                                {showValidationAlert && (
+                                    <button
+                                        onClick={handleConvertToViolation}
+                                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold hover:bg-red-200 transition-colors animate-pulse"
+                                    >
+                                        <ArrowRightCircle size={16} /> 轉換違規紀錄
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">罰單編號 *</label>
+                                <input type="text" className="w-full p-2 border rounded-lg"
+                                    value={currentTicket.ticketNumber || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, ticketNumber: e.target.value })}
+                                    placeholder="輸入罰單編號"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">開罰日期 *</label>
+                                <input type="date" className="w-full p-2 border rounded-lg"
+                                    value={currentTicket.date || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">發文日期</label>
+                                <input type="date" className="w-full p-2 border rounded-lg"
+                                    value={currentTicket.issueDate || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, issueDate: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="md:col-span-3">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">工程名稱 (序號+簡稱) *</label>
+                                <select className="w-full p-2 border rounded-lg font-mono"
+                                    value={currentTicket.projectName || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, projectName: e.target.value })}
                                 >
-                                    <ExternalLink size={14} /> {currentTicket.scanFileName || '檢視掃描檔'}
-                                </a>
-                            ) : (
-                                <span className="text-xs text-amber-600">尚未上傳</span>
-                            )}
+                                    <option value="">請選擇工程...</option>
+                                    {projects.map(p => (
+                                        <option key={p.id} value={p.name}>
+                                            {String(p.sequence).padStart(3, '0')} - {p.abbreviation}
+                                        </option>
+                                    ))}
+                                </select>
+                                {currentTicket.projectName && (
+                                    <div className="mt-1 text-sm text-slate-500 pl-2 border-l-2 border-slate-300">
+                                        {currentTicket.projectName}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊</label>
+                                <div className="p-2 bg-slate-100 rounded-lg text-slate-600 text-sm h-10 flex items-center">
+                                    {currentTicket.hostTeam || '-'}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">開單人 *</label>
+                                <select className="w-full p-2 border rounded-lg"
+                                    value={currentTicket.issuer || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, issuer: e.target.value })}
+                                >
+                                    <option value="">請選擇...</option>
+                                    {availableIssuers.map((s, idx) => (
+                                        <option key={idx} value={s.name}>{s.name} ({s.title})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">CCTV 缺失種類</label>
+                                <select className="w-full p-2 border rounded-lg" value={currentTicket.cctvType || ''} onChange={e => setCurrentTicket({ ...currentTicket, cctvType: e.target.value })}>
+                                    <option value="">請選擇</option>
+                                    {cctvTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">開單類型</label>
+                                <select className="w-full p-2 border rounded-lg" value={currentTicket.ticketType || ''} onChange={e => setCurrentTicket({ ...currentTicket, ticketType: e.target.value })}>
+                                    <option value="">請選擇</option>
+                                    {ticketTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">督導人</label>
+                                <input type="text" className="w-full p-2 border rounded-lg" value={currentTicket.supervisor || ''} onChange={e => setCurrentTicket({ ...currentTicket, supervisor: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">忠哥分配</label>
+                                <select className="w-full p-2 border rounded-lg" value={currentTicket.allocation || ''} onChange={e => setCurrentTicket({ ...currentTicket, allocation: e.target.value })}>
+                                    <option value="">請選擇</option>
+                                    {allocTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">備註</label>
+                                <input type="text" className="w-full p-2 border rounded-lg" value={currentTicket.note || ''} onChange={e => setCurrentTicket({ ...currentTicket, note: e.target.value })} />
+                            </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => handleUploadFineScan(currentTicket.ticketNumber!)}
-                            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
-                        >
-                            <Upload size={14} /> {currentTicket.scanFileUrl ? '重新上傳' : '上傳掃描檔'}
-                        </button>
                     </div>
-                )}
-                {/* Fine Items Input Area */}
-                <div className="p-4 bg-indigo-50 border-b border-indigo-100">
-                    <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2">
-                        <Plus size={16} /> 新增罰款項目
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                        <div className="md:col-span-4">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">違規項目</label>
-                            <select className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                value={currentItem.violationItem || ''}
-                                onChange={e => setCurrentItem({ ...currentItem, violationItem: e.target.value })}
+
+                    {/* 罰單掃描檔上傳 */}
+                    {currentTicket.ticketNumber && (
+                        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileUp size={18} className="text-amber-600" />
+                                <span className="text-sm font-medium text-amber-800">罰單掃描檔</span>
+                                {currentTicket.scanFileUrl ? (
+                                    <a href={currentTicket.scanFileUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 font-medium underline"
+                                    >
+                                        <ExternalLink size={14} /> {currentTicket.scanFileName || '檢視掃描檔'}
+                                    </a>
+                                ) : (
+                                    <span className="text-xs text-amber-600">尚未上傳</span>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleUploadFineScan(currentTicket.ticketNumber!)}
+                                className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
                             >
-                                <option value="">選擇違規項目...</option>
-                                {fineList.map((item, idx) => (
-                                    <option key={idx} value={item.violationItem}>{item.violationItem?.substring(0, 20)}...</option>
+                                <Upload size={14} /> {currentTicket.scanFileUrl ? '重新上傳' : '上傳掃描檔'}
+                            </button>
+                        </div>
+                    )}
+                    {/* Fine Items Input Area */}
+                    <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+                        <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2">
+                            <Plus size={16} /> 新增罰款項目
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                            <div className="md:col-span-4">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">違規項目</label>
+                                <select className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    value={currentItem.violationItem || ''}
+                                    onChange={e => setCurrentItem({ ...currentItem, violationItem: e.target.value })}
+                                >
+                                    <option value="">選擇違規項目...</option>
+                                    {fineList.map((item, idx) => (
+                                        <option key={idx} value={item.violationItem}>{item.violationItem?.substring(0, 20)}...</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">單價</label>
+                                <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    value={currentItem.unitPrice || 0}
+                                    onChange={e => setCurrentItem({ ...currentItem, unitPrice: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">件數</label>
+                                <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    value={currentItem.count}
+                                    onChange={e => setCurrentItem({ ...currentItem, count: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">倍數</label>
+                                <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    value={currentItem.multiplier}
+                                    onChange={e => setCurrentItem({ ...currentItem, multiplier: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">關係</label>
+                                <select className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    value={currentItem.relationship || '現約'}
+                                    onChange={e => setCurrentItem({ ...currentItem, relationship: e.target.value })}
+                                >
+                                    {relationships.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-medium text-indigo-700 mb-1">修改單價原因</label>
+                                <input type="text" className="w-full p-2 border border-indigo-200 rounded text-sm"
+                                    placeholder="若修改單價必填"
+                                    value={currentItem.priceAdjustmentReason || ''}
+                                    onChange={e => setCurrentItem({ ...currentItem, priceAdjustmentReason: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <button onClick={handleAddItem} className="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">
+                                    加入
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Added Items List */}
+                    <div className="p-4">
+                        <h4 className="font-bold text-slate-700 mb-2">已加入項目</h4>
+                        <table className="w-full text-sm text-left border rounded-lg overflow-hidden">
+                            <thead className="bg-slate-100 text-slate-600">
+                                <tr>
+                                    <th className="px-3 py-2">違規項目</th>
+                                    <th className="px-3 py-2 text-right">單價</th>
+                                    <th className="px-3 py-2 text-right">件數</th>
+                                    <th className="px-3 py-2 text-right">倍數</th>
+                                    <th className="px-3 py-2 text-right">小計</th>
+                                    <th className="px-3 py-2">關係</th>
+                                    <th className="px-3 py-2">原因</th>
+                                    <th className="px-3 py-2">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {ticketItems.map((item, idx) => (
+                                    <tr key={idx}>
+                                        <td className="px-3 py-2 truncate max-w-xs">{item.violationItem}</td>
+                                        <td className="px-3 py-2 text-right">{Number(item.unitPrice).toLocaleString()}</td>
+                                        <td className="px-3 py-2 text-right">{item.count}</td>
+                                        <td className="px-3 py-2 text-right">{item.multiplier}</td>
+                                        <td className="px-3 py-2 text-right font-bold text-slate-700">{Number(item.subtotal).toLocaleString()}</td>
+                                        <td className="px-3 py-2">{item.relationship}</td>
+                                        <td className="px-3 py-2 text-slate-500 text-xs">{item.priceAdjustmentReason}</td>
+                                        <td className="px-3 py-2">
+                                            <button onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700"><X size={14} /></button>
+                                        </td>
+                                    </tr>
                                 ))}
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">單價</label>
-                            <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                value={currentItem.unitPrice || 0}
-                                onChange={e => setCurrentItem({ ...currentItem, unitPrice: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-1">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">件數</label>
-                            <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                value={currentItem.count}
-                                onChange={e => setCurrentItem({ ...currentItem, count: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-1">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">倍數</label>
-                            <input type="number" className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                value={currentItem.multiplier}
-                                onChange={e => setCurrentItem({ ...currentItem, multiplier: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-1">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">關係</label>
-                            <select className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                value={currentItem.relationship || '現約'}
-                                onChange={e => setCurrentItem({ ...currentItem, relationship: e.target.value })}
-                            >
-                                {relationships.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-medium text-indigo-700 mb-1">修改單價原因</label>
-                            <input type="text" className="w-full p-2 border border-indigo-200 rounded text-sm"
-                                placeholder="若修改單價必填"
-                                value={currentItem.priceAdjustmentReason || ''}
-                                onChange={e => setCurrentItem({ ...currentItem, priceAdjustmentReason: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-1">
-                            <button onClick={handleAddItem} className="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">
-                                加入
+                                {ticketItems.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-slate-400">尚無項目</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="p-4 border-t flex justify-between items-center bg-slate-50 rounded-b-xl">
+                        {showValidationAlert && (
+                            <div className="text-red-600 font-bold flex items-center gap-2">
+                                <AlertTriangle size={20} />
+                                總額達 1 萬元以上 (應進行違規講習)
+                            </div>
+                        )}
+                        <div className="flex gap-3 ml-auto">
+                            <button onClick={() => { setIsEditing(false); resetForm(); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">取消</button>
+                            <button onClick={handleSaveTicket} disabled={isSaving} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                                {isSaving && <Loader2 className="animate-spin" size={18} />}
+                                儲存整張罰單
                             </button>
                         </div>
                     </div>
                 </div>
+            );
+        }
 
-                {/* Added Items List */}
-                <div className="p-4">
-                    <h4 className="font-bold text-slate-700 mb-2">已加入項目</h4>
-                    <table className="w-full text-sm text-left border rounded-lg overflow-hidden">
-                        <thead className="bg-slate-100 text-slate-600">
-                            <tr>
-                                <th className="px-3 py-2">違規項目</th>
-                                <th className="px-3 py-2 text-right">單價</th>
-                                <th className="px-3 py-2 text-right">件數</th>
-                                <th className="px-3 py-2 text-right">倍數</th>
-                                <th className="px-3 py-2 text-right">小計</th>
-                                <th className="px-3 py-2">關係</th>
-                                <th className="px-3 py-2">原因</th>
-                                <th className="px-3 py-2">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {ticketItems.map((item, idx) => (
-                                <tr key={idx}>
-                                    <td className="px-3 py-2 truncate max-w-xs">{item.violationItem}</td>
-                                    <td className="px-3 py-2 text-right">{Number(item.unitPrice).toLocaleString()}</td>
-                                    <td className="px-3 py-2 text-right">{item.count}</td>
-                                    <td className="px-3 py-2 text-right">{item.multiplier}</td>
-                                    <td className="px-3 py-2 text-right font-bold text-slate-700">{Number(item.subtotal).toLocaleString()}</td>
-                                    <td className="px-3 py-2">{item.relationship}</td>
-                                    <td className="px-3 py-2 text-slate-500 text-xs">{item.priceAdjustmentReason}</td>
-                                    <td className="px-3 py-2">
-                                        <button onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700"><X size={14} /></button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {ticketItems.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-slate-400">尚無項目</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="p-4 border-t flex justify-between items-center bg-slate-50 rounded-b-xl">
-                    {showValidationAlert && (
-                        <div className="text-red-600 font-bold flex items-center gap-2">
-                            <AlertTriangle size={20} />
-                            總額達 1 萬元以上 (應進行違規講習)
+        return (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <h3 className="font-bold text-slate-700">罰單列表 (依單號群組)</h3>
+                        <div className="flex gap-2">
+                            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600">
+                                <Download size={14} /> 匯出 Excel
+                            </button>
+                            <label className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600 cursor-pointer">
+                                <Upload size={14} /> 匯入 Excel
+                                <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} />
+                            </label>
                         </div>
-                    )}
-                    <div className="flex gap-3 ml-auto">
-                        <button onClick={() => { setIsEditing(false); resetForm(); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">取消</button>
-                        <button onClick={handleSaveTicket} disabled={isSaving} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
-                            {isSaving && <Loader2 className="animate-spin" size={18} />}
-                            儲存整張罰單
-                        </button>
                     </div>
-                </div>
+                    <Plus size={16} /> 新增罰單
+                </button>
             </div>
-        );
-    }
-
-    return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-500">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <h3 className="font-bold text-slate-700">罰單列表 (依單號群組)</h3>
-                    <div className="flex gap-2">
-                        <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600">
-                            <Download size={14} /> 匯出 Excel
-                        </button>
-                        <label className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600 cursor-pointer">
-                            <Upload size={14} /> 匯入 Excel
-                            <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} />
-                        </label>
-                    </div>
-                </div>
-                <Plus size={16} /> 新增罰單
-            </button>
-        </div>
                 {/* Filter Toolbar */ }
                  <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -1097,7 +1097,7 @@ const renderManage = () => {
                 </div>
             </div >
         );
-    };
+};
 
 
 
