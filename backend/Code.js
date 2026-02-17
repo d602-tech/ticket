@@ -157,6 +157,9 @@ function handleRequest(e) {
 
       // ========== 上傳罰單掃描檔 ==========
       if (data.action === 'uploadFineScan') {
+        // 確保 Fine/Projects 欄位完整（含 scanFileName, scanFileUrl）
+        initSheetWithMap(ss, 'Fine');
+        initSheetWithMap(ss, 'Projects');
         try {
           var scanFolderId = '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF';
           var scanFolder = DriveApp.getFolderById(scanFolderId);
