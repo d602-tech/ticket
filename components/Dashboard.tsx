@@ -9,17 +9,8 @@ import { Violation, Project, Fine, ViolationStatus } from '../types';
 import { VersionHistory } from './VersionHistory';
 import * as XLSX from 'xlsx';
 
-const getStatusLabel = (status: ViolationStatus) => {
-    switch (status) {
-        case ViolationStatus.PENDING: return '待辦理';
-        case ViolationStatus.NOTIFIED: return '已通知';
-        case ViolationStatus.SUBMITTED: return '已提送';
-        case ViolationStatus.COMPLETED: return '已完成';
-        default: return '未知';
-    }
-};
 import { StatCard } from './StatCard';
-import { getDaysRemaining, formatDate } from '../utils';
+import { getDaysRemaining, formatDate, getStatusLabel } from '../utils';
 
 interface DashboardProps {
     role: string;
