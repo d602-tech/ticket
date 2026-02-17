@@ -9,6 +9,15 @@ interface Version {
 
 const versions: Version[] = [
     {
+        version: 'v1.5',
+        date: '2026-02-17',
+        features: [
+            '新增專案契約編號顯示及工作隊圖示區分',
+            '優化 Excel 匯入/匯出標題為繁體中文',
+            '系統總覽承攬商罰款佔比直接顯示總金額'
+        ]
+    },
+    {
         version: 'v1.4',
         date: '2026-02-16',
         features: [

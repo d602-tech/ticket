@@ -472,7 +472,33 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     // Excel Export
     const handleExport = () => {
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(fines);
+        // Map to Chinese Headers
+        const data = fines.map(f => ({
+            '罰單編號': f.ticketNumber,
+            '工程名稱': f.projectName,
+            '開單日期': f.date,
+            '發文日期': f.issueDate,
+            '主辦工作隊': f.hostTeam,
+            '開單人員': f.issuer,
+            '承攬商': f.contractor,
+            '監造單位': f.supervisor,
+            '類別': f.ticketType,
+            'CCTV類別': f.cctvType,
+            '歸屬': f.allocation,
+            '違規細項': f.violationItem,
+            '數量': f.count,
+            '單位': f.unit,
+            '單價': f.unitPrice,
+            '倍率': f.multiplier,
+            '小計': f.subtotal,
+            '總金額': f.totalAmount,
+            '備註': f.note,
+            '修改原因': f.priceAdjustmentReason,
+            '關係': f.relationship,
+            '掃描檔名稱': f.scanFileName,
+            '掃描檔連結': f.scanFileUrl
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
         XLSX.utils.book_append_sheet(wb, ws, "Fines");
         XLSX.writeFile(wb, "Fines_Export.xlsx");
     };
@@ -488,7 +514,35 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
             const wb = XLSX.read(bstr, { type: 'binary' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws) as Fine[];
+            const rawData = XLSX.utils.sheet_to_json(ws) as any[];
+
+            // Map Chinese to Keys
+            const data: Fine[] = rawData.map(row => ({
+                id: row['id'] || Date.now().toString() + Math.random(),
+                ticketNumber: row['罰單編號'] || row['ticketNumber'],
+                projectName: row['工程名稱'] || row['projectName'],
+                date: row['開單日期'] || row['date'],
+                issueDate: row['發文日期'] || row['issueDate'],
+                hostTeam: row['主辦工作隊'] || row['hostTeam'],
+                issuer: row['開單人員'] || row['issuer'],
+                contractor: row['承攬商'] || row['contractor'],
+                supervisor: row['監造單位'] || row['supervisor'],
+                ticketType: row['類別'] || row['ticketType'],
+                cctvType: row['CCTV類別'] || row['cctvType'],
+                allocation: row['歸屬'] || row['allocation'],
+                violationItem: row['違規細項'] || row['violationItem'],
+                count: row['數量'] || row['count'],
+                unit: row['單位'] || row['unit'],
+                unitPrice: row['單價'] || row['unitPrice'],
+                multiplier: row['倍率'] || row['multiplier'],
+                subtotal: row['小計'] || row['subtotal'],
+                totalAmount: row['總金額'] || row['totalAmount'],
+                note: row['備註'] || row['note'],
+                priceAdjustmentReason: row['修改原因'] || row['priceAdjustmentReason'],
+                relationship: row['關係'] || row['relationship'],
+                scanFileName: row['掃描檔名稱'] || row['scanFileName'],
+                scanFileUrl: row['掃描檔連結'] || row['scanFileUrl']
+            }));
 
             if (confirm(`即將匯入 ${data.length} 筆資料，這將合併至現有資料。確定?`)) {
                 setIsSaving(true);

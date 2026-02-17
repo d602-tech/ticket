@@ -476,7 +476,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                 fill="#8884d8"
                                 paddingAngle={3}
                                 dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, value, percent }) => `${name} $${value.toLocaleString()} (${(percent * 100).toFixed(0)}%)`}
                             >
                                 {chartData.contractorData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={2} stroke="#fff" />
