@@ -1004,15 +1004,16 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             </label>
                         </div>
                     </div>
-                    <Plus size={16} /> 新增罰單
-                </button>
-            </div>
-                {/* Filter Toolbar */ }
-                 <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
+                    <button onClick={() => { resetForm(); setIsEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition-colors">
+                        <Plus size={16} /> 新增罰單
+                    </button>
+                </div>
+                {/* Filter Toolbar */}
+                <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <Filter size={16} className="text-slate-400" />
                         <span className="text-sm font-medium text-slate-600">專案篩選:</span>
-                        <select 
+                        <select
                             className="text-sm border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500"
                             value={projectFilter}
                             onChange={e => setProjectFilter(e.target.value)}
@@ -1097,60 +1098,60 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 </div>
             </div >
         );
-};
+    };
 
 
 
-return (
-    <div className="space-y-6">
-        {/* 上傳進度遮罩 */}
-        {uploadProgress.show && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-5 min-w-[340px] animate-in zoom-in-95 duration-300">
-                    <div className="relative">
-                        <div className="w-16 h-16 border-4 border-indigo-100 rounded-full"></div>
-                        <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-lg font-bold text-slate-800">{uploadProgress.stage}</p>
-                        {uploadProgress.fileName && (
-                            <p className="text-sm text-slate-500 mt-1.5 font-mono truncate max-w-[280px]">{uploadProgress.fileName}</p>
-                        )}
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-indigo-600 h-1.5 rounded-full animate-pulse" style={{ width: uploadProgress.stage.includes('完成') ? '100%' : uploadProgress.stage.includes('伺服器') ? '60%' : '30%' }}></div>
+    return (
+        <div className="space-y-6">
+            {/* 上傳進度遮罩 */}
+            {uploadProgress.show && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-5 min-w-[340px] animate-in zoom-in-95 duration-300">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-4 border-indigo-100 rounded-full"></div>
+                            <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-lg font-bold text-slate-800">{uploadProgress.stage}</p>
+                            {uploadProgress.fileName && (
+                                <p className="text-sm text-slate-500 mt-1.5 font-mono truncate max-w-[280px]">{uploadProgress.fileName}</p>
+                            )}
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-indigo-600 h-1.5 rounded-full animate-pulse" style={{ width: uploadProgress.stage.includes('完成') ? '100%' : uploadProgress.stage.includes('伺服器') ? '60%' : '30%' }}></div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        )}
+            )}
 
-        <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-slate-800">罰款管理系統</h2>
-            <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-                <button
-                    onClick={() => setActiveTab('stats')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    統計圖表
-                </button>
-                <button
-                    onClick={() => setActiveTab('manage')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'manage' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    資料管理
-                </button>
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-800">罰款管理系統</h2>
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                    <button
+                        onClick={() => setActiveTab('stats')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        統計圖表
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('manage')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'manage' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        資料管理
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'stats' && renderStats()}
+            {activeTab === 'manage' && renderManage()}
+
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-sm text-indigo-700 flex items-start gap-2">
+                <div className="mt-0.5"><Filter size={16} /></div>
+                <div>
+                    提示：此系統資料與 Google Sheet「Fine」同步。人員資料同步至「Section」。違規紀錄同步至「Violations」。
+                </div>
             </div>
         </div>
-
-        {activeTab === 'stats' && renderStats()}
-        {activeTab === 'manage' && renderManage()}
-
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-sm text-indigo-700 flex items-start gap-2">
-            <div className="mt-0.5"><Filter size={16} /></div>
-            <div>
-                提示：此系統資料與 Google Sheet「Fine」同步。人員資料同步至「Section」。違規紀錄同步至「Violations」。
-            </div>
-        </div>
-    </div>
-);
+    );
 }
