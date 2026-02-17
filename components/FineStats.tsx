@@ -37,6 +37,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<{ show: boolean; stage: string; fileName?: string }>({ show: false, stage: '' });
 
     // Ticket State
     const [editTicketNumber, setEditTicketNumber] = useState<string | null>(null); // Track if editing existing ticket
@@ -483,11 +484,12 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         input.onchange = async (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (!file) return;
-            setIsSaving(true);
+            setUploadProgress({ show: true, stage: '正在讀取檔案...', fileName: file.name });
             try {
                 const reader = new FileReader();
                 reader.onload = async () => {
                     try {
+                        setUploadProgress({ show: true, stage: '正在上傳至伺服器...', fileName: file.name });
                         const base64 = (reader.result as string).split(',')[1];
                         const result = await callGasApi({
                             action: 'uploadFineScan',
@@ -497,21 +499,31 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             mimeType: file.type
                         });
                         if (result.success && result.fines) {
+                            setUploadProgress({ show: true, stage: '上傳完成！正在開啟檔案...', fileName: file.name });
                             onSaveFines(result.fines);
-                            alert('掃描檔上傳成功');
+                            // 更新編輯中的 ticket
+                            if (currentTicket.ticketNumber === ticketNumber) {
+                                setCurrentTicket(prev => ({ ...prev, scanFileName: result.scanFileName, scanFileUrl: result.scanFileUrl }));
+                            }
+                            setTimeout(() => {
+                                setUploadProgress({ show: false, stage: '' });
+                                if (result.scanFileUrl) {
+                                    window.open(result.scanFileUrl, '_blank');
+                                }
+                            }, 800);
                         } else {
+                            setUploadProgress({ show: false, stage: '' });
                             alert('上傳失敗: ' + (result.error || '未知錯誤'));
                         }
                     } catch (err) {
+                        setUploadProgress({ show: false, stage: '' });
                         alert('上傳失敗: ' + (err as Error).message);
-                    } finally {
-                        setIsSaving(false);
                     }
                 };
                 reader.readAsDataURL(file);
             } catch (err) {
+                setUploadProgress({ show: false, stage: '' });
                 alert('讀取檔案失敗');
-                setIsSaving(false);
             }
         };
         input.click();
@@ -1005,6 +1017,27 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
     return (
         <div className="space-y-6">
+            {/* 上傳進度遮罩 */}
+            {uploadProgress.show && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-5 min-w-[340px] animate-in zoom-in-95 duration-300">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-4 border-indigo-100 rounded-full"></div>
+                            <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-lg font-bold text-slate-800">{uploadProgress.stage}</p>
+                            {uploadProgress.fileName && (
+                                <p className="text-sm text-slate-500 mt-1.5 font-mono truncate max-w-[280px]">{uploadProgress.fileName}</p>
+                            )}
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-indigo-600 h-1.5 rounded-full animate-pulse" style={{ width: uploadProgress.stage.includes('完成') ? '100%' : uploadProgress.stage.includes('伺服器') ? '60%' : '30%' }}></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">罰款管理系統</h2>
                 <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
