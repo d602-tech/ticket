@@ -86,3 +86,46 @@ export const sendEmailViaGas = async (data: EmailData): Promise<boolean> => {
         return false;
     }
 };
+
+// Incremental Updates
+export const updateViolation = async (violation: any) => {
+    return await callGasApi({
+        action: 'updateViolation',
+        violation
+    });
+};
+
+export const deleteViolation = async (id: string) => {
+    return await callGasApi({
+        action: 'deleteViolation',
+        id
+    });
+};
+
+export const updateProject = async (project: any) => {
+    return await callGasApi({
+        action: 'updateProject',
+        project
+    });
+};
+
+export const deleteProject = async (id: string) => {
+    return await callGasApi({
+        action: 'deleteProject',
+        id
+    });
+};
+
+export const uploadEvidence = async (payload: {
+    violationId?: string;
+    fileData: string;
+    fileName: string;
+    mimeType: string;
+    projectInfo?: { sequence: number | string, abbreviation: string };
+    violationDate?: string;
+}) => {
+    return await callGasApi({
+        action: 'uploadEvidence',
+        ...payload
+    });
+};

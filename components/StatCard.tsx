@@ -3,24 +3,23 @@ import { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
-  value: number | string;
+  value: string | number;
   icon: LucideIcon;
   colorClass: string;
-  trend?: string;
   isCurrency?: boolean;
 }
 
-export const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, colorClass, trend, isCurrency }) => {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100/80 flex items-start justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group">
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{title}</p>
-        <h3 className={`text-2xl font-bold tracking-tight ${isCurrency ? 'text-indigo-600 font-mono' : 'text-slate-800'}`}>{value}</h3>
-        {trend && <p className="text-xs text-slate-400 mt-2">{trend}</p>}
+export const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, colorClass, isCurrency = false }) => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all group">
+    <div className="flex justify-between items-start mb-4">
+      <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10 group-hover:bg-opacity-20 transition-all`}>
+        <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
       </div>
-      <div className={`p-2.5 rounded-xl ${colorClass} shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
+      {isCurrency && <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-full">TWD</span>}
     </div>
-  );
-};
+    <div className="space-y-1">
+      <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
+      <p className="text-2xl font-bold text-slate-800 tracking-tight">{value}</p>
+    </div>
+  </div>
+);

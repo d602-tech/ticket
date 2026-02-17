@@ -1,5 +1,5 @@
 import { Violation, Project, Fine, FineList, Section, User } from '../types';
-import { callGasApi } from './apiService';
+import { callGasApi, updateViolation, deleteViolation, updateProject, deleteProject, uploadEvidence } from './apiService';
 
 export const COMMON_VIOLATIONS = [
     "未依規定配戴安全帽",
@@ -63,7 +63,7 @@ export const fetchUsers = async (adminRole: string): Promise<User[]> => {
     }
 };
 
-// 同步所有資料到後端 (含檔案上傳處理)
+// Legacy Sync (保留用於大量更新或 migration，但建議改用單筆更新)
 export const syncData = async (
     projects?: Project[],
     violations?: Violation[],
@@ -85,30 +85,16 @@ export const syncData = async (
     users: User[]
 }> => {
     try {
+        // Fallback to legacy sync if needed
         const payload: any = { action: 'sync' };
         if (projects) payload.projects = projects;
         if (violations) payload.violations = violations;
         if (fines) payload.fines = fines;
         if (sections) payload.sections = sections;
         if (users) payload.users = users;
-        // 如果有檔案需要上傳
-        if (fileUpload) {
-            payload.fileUpload = fileUpload;
-        }
+        if (fileUpload) payload.fileUpload = fileUpload;
 
         const response = await callGasApi(payload);
-
-        // 如果有檔案上傳，顯示結果
-        if (fileUpload && response.fileUploadStatus) {
-            if (response.fileUploadStatus.success) {
-                console.log('✅ 檔案上傳成功:', response.fileUploadStatus.fileName, response.fileUploadStatus.fileUrl);
-            } else {
-                console.error('❌ 檔案上傳失敗:', response.fileUploadStatus.error);
-                alert('檔案上傳失敗: ' + response.fileUploadStatus.error);
-            }
-        }
-
-        // 後端會回傳更新後的最新資料
         return {
             projects: response.projects || [],
             violations: response.violations || [],
@@ -120,6 +106,75 @@ export const syncData = async (
     } catch (error) {
         console.error("Sync failed:", error);
         throw error;
+    }
+};
+
+// ========== Incremental Update Functions ==========
+
+export const saveViolation = async (violation: Violation, fileData?: { name: string, type: string, base64: string }, projectInfo?: any) => {
+    try {
+        // 1. Upload Evidence if exists
+        let updatedViolation = { ...violation };
+
+        if (fileData) {
+            const uploadRes = await uploadEvidence({
+                violationId: violation.id,
+                fileData: fileData.base64,
+                fileName: fileData.name,
+                mimeType: fileData.type,
+                projectInfo: projectInfo,
+                violationDate: violation.violationDate?.replace(/-/g, '')
+            });
+
+            if (uploadRes.success) {
+                updatedViolation.fileUrl = uploadRes.fileUrl;
+                updatedViolation.fileName = uploadRes.fileName;
+            } else {
+                throw new Error('File upload failed: ' + uploadRes.error);
+            }
+        }
+
+        // 2. Update Violation Data
+        const res = await updateViolation(updatedViolation);
+        if (!res.success) throw new Error(res.error);
+
+        return { success: true, violation: updatedViolation };
+    } catch (e) {
+        console.error("Save violation failed:", e);
+        throw e;
+    }
+};
+
+export const removeViolation = async (id: string) => {
+    try {
+        const res = await deleteViolation(id);
+        if (!res.success) throw new Error(res.error);
+        return true;
+    } catch (e) {
+        console.error("Delete violation failed:", e);
+        throw e;
+    }
+};
+
+export const saveProject = async (project: Project) => {
+    try {
+        const res = await updateProject(project);
+        if (!res.success) throw new Error(res.error);
+        return { success: true, project };
+    } catch (e) {
+        console.error("Save project failed:", e);
+        throw e;
+    }
+};
+
+export const removeProject = async (id: string) => {
+    try {
+        const res = await deleteProject(id);
+        if (!res.success) throw new Error(res.error);
+        return true;
+    } catch (e) {
+        console.error("Delete project failed:", e);
+        throw e;
     }
 };
 

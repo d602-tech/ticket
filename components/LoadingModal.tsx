@@ -1,22 +1,15 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
-interface LoadingModalProps {
-    isOpen: boolean;
-    message?: string;
-}
-
-export const LoadingModal: React.FC<LoadingModalProps> = ({ isOpen, message = '資料同步中...' }) => {
+export const LoadingModal = ({ isOpen, message }: { isOpen: boolean, message: string }) => {
     if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-4 min-w-[300px]">
-                {/* Spinner */}
-                <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-
-                {/* Message */}
-                <p className="text-lg font-medium text-slate-700">{message}</p>
-                <p className="text-sm text-slate-500">請稍候...</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-scale-in">
+                <div className="p-4 bg-indigo-50 rounded-full">
+                    <Loader2 size={32} className="text-indigo-600 animate-spin" />
+                </div>
+                <p className="text-slate-700 font-medium text-lg">{message}</p>
             </div>
         </div>
     );

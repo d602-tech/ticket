@@ -8,7 +8,7 @@ interface PersonnelManagementProps {
     syncService: (projects?: any, violations?: any, filePayload?: any, fines?: any, sections?: any) => Promise<any>;
 }
 
-export default function PersonnelManagement({ sections, onSaveSections, syncService }: PersonnelManagementProps) {
+export function PersonnelManagement({ sections, onSaveSections, syncService }: PersonnelManagementProps) {
     const [isEditingSection, setIsEditingSection] = useState(false);
     const [currentSection, setCurrentSection] = useState<Partial<Section>>({});
     const [isSaving, setIsSaving] = useState(false);

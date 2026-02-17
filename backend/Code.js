@@ -3,6 +3,13 @@
 // 1. 執行身分: 我 (Me)
 // 2. 誰可以存取: 任何人 (Anyone)
 
+var CONFIG = {
+  SCAN_FOLDER_ID: '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF',
+  TEMPLATE_ID: '1jClhcGQCH4iEeaTNbpSobzkhrlzOEkwMNicwPnc7ikk',
+  TARGET_FOLDER_ID: '18rHdPCxrwnk7-l0k1ga1BigMBbEiZ3TA',
+  UPLOAD_FOLDER_ID: '1dBe4PF_20gXVMqospMQfWxC76v3PeYtv'
+};
+
 // ========== 欄位對照表 (English <-> Chinese) ==========
 var HEADER_MAP = {
   'Violations': {
@@ -110,442 +117,180 @@ function doPost(e) {
 
 function handleRequest(e) {
   var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
+  lock.tryLock(5000); // 縮短 Lock 時間
 
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-
     var output = {};
 
-    // 處理 POST 請求 — 先處理登入等輕量操作，避免不必要的初始化
     if (e && e.postData) {
       var data = JSON.parse(e.postData.contents);
+      var action = data.action;
 
-      // ========== 登入驗證 (快速路徑，不需初始化) ==========
-      if (data.action === 'login') {
-        output = handleLogin(ss, data.username, data.password);
-        return jsonOutput(output);
-      }
+      switch (action) {
+        case 'login':
+          return jsonOutput(handleLogin(ss, data.username, data.password));
 
-      // ========== Google 登入 (快速路徑) ==========
-      if (data.action === 'googleLogin') {
-        output = handleGoogleLogin(ss, data.credential);
-        return jsonOutput(output);
-      }
+        case 'googleLogin':
+          return jsonOutput(handleGoogleLogin(ss, data.credential));
 
-      // ========== 取得使用者列表 (快速路徑) ==========
-      if (data.action === 'getUsers') {
-        if (data.adminRole !== 'admin') {
-          return jsonOutput({ success: false, error: '無權限' });
-        }
-        output.users = loadData(ss, 'Users');
-        output.success = true;
-        return jsonOutput(output);
-      }
-
-      // ========== 取得全部資料 (快速路徑，跳過初始化) ==========
-      if (data.action === 'getData') {
-        output.projects = loadData(ss, 'Projects');
-        output.violations = loadData(ss, 'Violations');
-        output.fines = loadData(ss, 'Fine');
-        output.fineList = loadData(ss, 'FineList');
-        output.sections = loadData(ss, 'Section');
-        output.users = loadData(ss, 'Users');
-        output.success = true;
-        return jsonOutput(output);
-      }
-
-      // ========== 上傳罰單掃描檔 ==========
-      if (data.action === 'uploadFineScan') {
-        // 確保 Fine/Projects 欄位完整（含 scanFileName, scanFileUrl）
-        initSheetWithMap(ss, 'Fine');
-        initSheetWithMap(ss, 'Projects');
-        try {
-          var scanFolderId = '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF';
-          var scanFolder = DriveApp.getFolderById(scanFolderId);
-
-          var fileData = data.fileData;
-          var mimeType = data.mimeType || 'application/pdf';
-
-          // 從 Fine + Projects 計算檔名：序號簡稱_$總金額_罰單編號.副檔名
-          var ext = (data.originalName || 'file.pdf').split('.').pop() || 'pdf';
-          var fineRecords = loadData(ss, 'Fine');
-          var ticketFines = fineRecords.filter(function (f) { return f.ticketNumber === data.ticketNumber; });
-          var totalAmount = ticketFines.reduce(function (sum, f) { return sum + (Number(f.subtotal) || 0); }, 0);
-          var projectName = ticketFines.length > 0 ? ticketFines[0].projectName : '';
-
-          var projLabel = projectName || '未知工程';
-          if (projectName) {
-            var projects = loadData(ss, 'Projects');
-            var proj = projects.find(function (p) { return p.name === projectName; });
-            if (proj) {
-              var seq = String(proj.sequence || '').padStart(3, '0');
-              projLabel = seq + (proj.abbreviation || proj.name);
-            }
+        case 'getUsers':
+          if (data.adminRole !== 'admin') {
+            return jsonOutput({ success: false, error: '無權限' });
           }
+          return jsonOutput({ success: true, users: loadData(ss, 'Users') });
 
-          var formattedAmount = totalAmount.toLocaleString ? totalAmount.toLocaleString() : String(totalAmount);
-          var fileName = projLabel + '_$' + formattedAmount + '_' + (data.ticketNumber || 'unknown') + '.' + ext;
-
-          var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
-          var uploadedFile = scanFolder.createFile(blob);
-          uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-          var scanFileUrl = uploadedFile.getUrl();
-
-          // 更新對應罰單記錄
-          if (data.ticketNumber) {
-            fineRecords = fineRecords.map(function (f) {
-              if (f.ticketNumber === data.ticketNumber) {
-                f.scanFileName = fileName;
-                f.scanFileUrl = scanFileUrl;
-              }
-              return f;
-            });
-            saveData(ss, 'Fine', fineRecords);
-          }
-
-          output.success = true;
-          output.scanFileUrl = scanFileUrl;
-          output.scanFileName = fileName;
-          output.fines = loadData(ss, 'Fine');
-          return jsonOutput(output);
-        } catch (e) {
-          return jsonOutput({ success: false, error: e.toString() });
-        }
-      }
-    }
-
-    // === 自動初始化功能 (僅在非登入操作時執行) ===
-    initSheetWithMap(ss, 'Projects');
-    initSheetWithMap(ss, 'Violations');
-    initSheetWithMap(ss, 'Users');
-    initSheetWithMap(ss, 'NotificationLogs');
-    initSheetWithMap(ss, 'Fine');
-    initSheetWithMap(ss, 'FineList');
-    initSheetWithMap(ss, 'Section');
-
-    // 建立預設管理員帳號
-    initDefaultAdmin(ss);
-
-    // 處理其他 POST 請求
-    if (e && e.postData) {
-      var data = JSON.parse(e.postData.contents);
-
-      // ========== 新增使用者 (Admin Only) ==========
-      if (data.action === 'addUser') {
-        if (data.adminRole !== 'admin') {
-          return jsonOutput({ success: false, error: '無權限' });
-        }
-
-        var users = loadData(ss, 'Users');
-        if (users.some(function (u) { return u.email === data.newUser.email; })) {
-          return jsonOutput({ success: false, error: '該 Email 已存在' });
-        }
-
-        var newUser = {
-          email: data.newUser.email,
-          password: data.newUser.password,
-          name: data.newUser.name,
-          role: data.newUser.role || 'user'
-        };
-
-        users.push(newUser);
-        saveData(ss, 'Users', users);
-        output = { success: true, message: '使用者已新增' };
-        return jsonOutput(output);
-      }
-
-      // ========== 寄送 Email ==========
-      if (data.action === 'sendEmail') {
-        var htmlBody = generateManualHtmlEmail({
-          subject: data.subject,
-          body: data.body,
-          projectName: data.projectName || '-',
-          contractorName: data.contractorName || '-',
-          deadline: data.deadline || '-'
-        });
-
-        var users = loadData(ss, 'Users');
-        var admins = users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.email; });
-        var ccEmails = [];
-        if (data.ccEmail) ccEmails.push(data.ccEmail);
-        ccEmails = ccEmails.concat(admins);
-
-        var uniqueCc = ccEmails.filter(function (item, pos) {
-          return ccEmails.indexOf(item) == pos && item;
-        });
-
-        var emailOptions = {
-          to: data.to,
-          subject: data.subject,
-          htmlBody: htmlBody
-        };
-
-        if (uniqueCc.length > 0) {
-          emailOptions.cc = uniqueCc.join(',');
-        }
-
-        if (data.scanFileUrl) {
-          try {
-            var fileIdMatch = data.scanFileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (fileIdMatch && fileIdMatch[1]) {
-              var scanFile = DriveApp.getFileById(fileIdMatch[1]);
-              emailOptions.attachments = [scanFile.getBlob()];
-              Logger.log('✅ 已加入附件: ' + scanFile.getName());
-            }
-          } catch (e) {
-            Logger.log('⚠️ 無法加入附件: ' + e.message);
-          }
-        }
-
-        MailApp.sendEmail(emailOptions);
-
-        if (data.violationId) {
-          updateViolationField(ss, data.violationId, 'emailCount', function (current) {
-            return (current || 0) + 1;
+        case 'getData':
+          return jsonOutput({
+            success: true,
+            projects: loadData(ss, 'Projects'),
+            violations: loadData(ss, 'Violations'),
+            fines: loadData(ss, 'Fine'),
+            fineList: loadData(ss, 'FineList'),
+            sections: loadData(ss, 'Section'),
+            users: loadData(ss, 'Users')
           });
-        }
 
-        output.success = true;
-        output.message = 'Email sent';
+        case 'updateViolation':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleUpdateItem(ss, 'Violations', data.violation));
+
+        case 'deleteViolation':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleDeleteItem(ss, 'Violations', data.id));
+
+        case 'updateProject':
+          ensureSheetInitialized(ss, 'Projects');
+          return jsonOutput(handleUpdateItem(ss, 'Projects', data.project));
+
+        case 'deleteProject':
+          ensureSheetInitialized(ss, 'Projects');
+          return jsonOutput(handleDeleteItem(ss, 'Projects', data.id));
+
+        case 'uploadFineScan':
+          ensureSheetInitialized(ss, 'Fine');
+          ensureSheetInitialized(ss, 'Projects');
+          return jsonOutput(handleUploadFineScan(ss, data));
+
+        case 'addUser':
+          ensureSheetInitialized(ss, 'Users');
+          return jsonOutput(handleAddUser(ss, data));
+
+        case 'sendEmail':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleSendEmail(ss, data));
+
+        case 'generateDocument':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleGenerateDocument(ss, data));
+
+        case 'uploadScanFile':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleUploadScanFile(ss, data));
+
+        case 'uploadEvidence':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleUploadEvidence(ss, data));
+
+        case 'sync':
+          // Fallback for full sync
+          initAllSheets(ss);
+          return jsonOutput(handleFullSync(ss, data));
+
+        default:
+          return jsonOutput({ success: false, error: 'Unknown action: ' + action });
       }
-      // ========== 簽辦生成 ==========
-      else if (data.action === 'generateDocument') {
-        try {
-          var templateId = '1jClhcGQCH4iEeaTNbpSobzkhrlzOEkwMNicwPnc7ikk';
-          var targetFolderId = '18rHdPCxrwnk7-l0k1ga1BigMBbEiZ3TA';
-
-          function toROCDate(dateStr) {
-            if (!dateStr) return '';
-            var parts = dateStr.split('-');
-            if (parts.length !== 3) return dateStr;
-            var year = parseInt(parts[0]) - 1911;
-            var month = parseInt(parts[1]);
-            var day = parseInt(parts[2]);
-            return year + '年' + month + '月' + day + '日';
-          }
-
-          var templateFile = DriveApp.getFileById(templateId);
-          var targetFolder = DriveApp.getFolderById(targetFolderId);
-          var fileName = '簽辦_' + data.projectName + '_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
-          var copiedFile = templateFile.makeCopy(fileName, targetFolder);
-
-          Logger.log('✅ 範本已複製: ' + copiedFile.getId());
-
-          var doc = DocumentApp.openById(copiedFile.getId());
-          var body = doc.getBody();
-
-          body.replaceText('【工程名稱】', data.projectName || '');
-          body.replaceText('【講習截止日期】', toROCDate(data.lectureDeadline));
-          body.replaceText('【承攬商名稱】', data.contractorName || '');
-          body.replaceText('【主辦工作隊】', data.hostTeam || '');
-
-          doc.saveAndClose();
-          copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          var documentUrl = copiedFile.getUrl();
-
-          if (data.violationId) {
-            updateViolationField(ss, data.violationId, 'documentUrl', function () { return documentUrl; });
-          }
-
-          output.success = true;
-          output.documentUrl = documentUrl;
-          output.documentName = fileName;
-
-          Logger.log('✅ 簽辦已生成: ' + output.documentUrl);
-        } catch (e) {
-          Logger.log('❌ 簽辦生成失敗: ' + e.message);
-          output.success = false;
-          output.error = e.message;
-        }
-      }
-      // ========== 上傳簽辦掃描檔 ==========
-      else if (data.action === 'uploadScanFile') {
-        try {
-          var scanFolderId = '1tOlQ484YIcZ5iWCQTTeIxmMVx-hWvNxF';
-          var scanFolder = DriveApp.getFolderById(scanFolderId);
-
-          var fileData = data.fileData;
-          var fileName = data.fileName || '掃描檔_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
-          var mimeType = data.mimeType || 'application/pdf';
-          var replaceReason = data.replaceReason || null;
-
-          var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
-          var uploadedFile = scanFolder.createFile(blob);
-          uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-          var scanFileUrl = uploadedFile.getUrl();
-
-          if (data.violationId) {
-            updateViolationScanFile(ss, data.violationId, fileName, scanFileUrl, replaceReason);
-          }
-
-          output.success = true;
-          output.scanFileUrl = scanFileUrl;
-          output.scanFileName = fileName;
-          output.wasReplaced = !!replaceReason;
-          Logger.log('✅ 掃描檔已上傳: ' + scanFileUrl);
-        } catch (e) {
-          Logger.log('❌ 掃描檔上傳失敗: ' + e.message);
-          output.success = false;
-          output.error = e.message;
-        }
-      }
-      // ========== 資料同步 ==========
-      else if (data.action === 'sync') {
-        var uploadedFileUrl = "";
-
-        // 檔案上傳部分 (維持原樣)
-        if (data.fileUpload && data.fileUpload.fileData) {
-          try {
-            var folderId = "1dBe4PF_20gXVMqospMQfWxC76v3PeYtv";
-            var folder = DriveApp.getFolderById(folderId);
-
-            var originalName = data.fileUpload.fileData.name;
-            var contentType = data.fileUpload.fileData.type;
-            var fileExt = originalName.substring(originalName.lastIndexOf('.'));
-
-            var customFileName = originalName;
-            if (data.fileUpload.projectInfo) {
-              var seq = data.fileUpload.projectInfo.sequence || '00';
-              var abbr = data.fileUpload.projectInfo.abbreviation || '未命名';
-              var vDate = data.fileUpload.violationDate || Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
-              customFileName = seq + "_" + abbr + "_" + vDate + fileExt;
-            }
-
-            var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, customFileName);
-            var file = folder.createFile(blob);
-            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-            uploadedFileUrl = file.getUrl();
-
-            output.fileUploadStatus = {
-              success: true,
-              fileName: customFileName,
-              fileUrl: uploadedFileUrl
-            };
-
-            if (data.violations) {
-              data.violations = data.violations.map(function (v) {
-                if (v.id === data.fileUpload.violationId) {
-                  v.fileUrl = uploadedFileUrl;
-                }
-                return v;
-              });
-            }
-          } catch (err) {
-            output.fileUploadStatus = {
-              success: false,
-              error: err.toString()
-            };
-          }
-        }
-
-        // 同步資料
-        if (data.projects) {
-          saveData(ss, 'Projects', data.projects);
-        }
-        if (data.violations) {
-          saveData(ss, 'Violations', data.violations);
-        }
-        if (data.violations) {
-          saveData(ss, 'Violations', data.violations);
-        }
-        if (data.fines) {
-          saveData(ss, 'Fine', data.fines);
-        }
-        if (data.sections) {
-          saveData(ss, 'Section', data.sections);
-        }
-        if (data.users) { // Support saving users
-          saveData(ss, 'Users', data.users);
-        }
-        output.success = true;
-      }
+    } else {
+      return jsonOutput({ success: false, error: 'No Post Data' });
     }
-
-    // 回傳最新資料
-    output.projects = loadData(ss, 'Projects');
-    output.violations = loadData(ss, 'Violations');
-    output.fines = loadData(ss, 'Fine');
-    output.fineList = loadData(ss, 'FineList');
-    output.sections = loadData(ss, 'Section');
-    output.users = loadData(ss, 'Users');
-
-    return jsonOutput(output);
 
   } catch (error) {
-    return jsonOutput({ error: error.toString() });
+    return jsonOutput({ success: false, error: error.toString() });
   } finally {
     lock.releaseLock();
   }
 }
 
-// ========== Setup Tool (Phase 10) ==========
+// ========== Incremental Update Helpers ==========
 
-function setupFineSystem() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function handleUpdateItem(ss, sheetName, item) {
+  if (!item || !item.id) return { success: false, error: 'No item or ID provided' };
 
-  // 1. 初始化 Sheet 標題
-  var fineSheet = initSheetWithMap(ss, 'Fine');
-  var fineListSheet = initSheetWithMap(ss, 'FineList');
-  var sectionSheet = initSheetWithMap(ss, 'Section');
+  var sheet = ss.getSheetByName(sheetName);
+  var map = HEADER_MAP[sheetName];
+  var idHeader = map['id'] || 'ID';
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var idColIndex = headers.indexOf(idHeader);
 
-  // 2. 設定下拉選單 (Data Validation)
+  if (idColIndex === -1) return { success: false, error: 'ID column not found' };
 
-  // (A) 工程名稱 -> Fine!E:E (來自 Projects!D:D)
-  var projectSheet = ss.getSheetByName('Projects'); // 注意: Projects 標題是中文, 但 Sheet 名仍是 Projects
-  if (projectSheet) {
-    var range = projectSheet.getRange('D2:D'); // 假設 D 欄是工程名稱
-    var rule = SpreadsheetApp.newDataValidation().requireValueInRange(range).build();
-    fineSheet.getRange('E2:E').setDataValidation(rule);
+  var data = sheet.getDataRange().getValues();
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idColIndex]) === String(item.id)) {
+      rowIndex = i + 1;
+      break;
+    }
   }
 
-  // (B) 開單人 -> Fine!G:G (來自 Section!C:C)
-  var sectionRange = sectionSheet.getRange('C2:C');
-  var sectionRule = SpreadsheetApp.newDataValidation().requireValueInRange(sectionRange).build();
-  fineSheet.getRange('G2:G').setDataValidation(sectionRule);
+  var rowData = [];
+  var newRow = false;
 
-  // (C) 違規項目 -> Fine!I:I (來自 FineList!C:C)
-  var fineListRange = fineListSheet.getRange('C2:C');
-  var fineListRule = SpreadsheetApp.newDataValidation().requireValueInRange(fineListRange).build();
-  fineSheet.getRange('I2:I').setDataValidation(fineListRule);
+  if (rowIndex === -1) {
+    rowIndex = sheet.getLastRow() + 1;
+    newRow = true;
+  }
 
-  // (D) CCTV 缺失種類 -> Fine!P:P (Hardcoded)
-  var cctvRule = SpreadsheetApp.newDataValidation().requireValueInList(['設備', '現檢員', '工安組']).build();
-  fineSheet.getRange('P2:P').setDataValidation(cctvRule);
+  // Prepare row data
+  // Important: For Update, we should merge with existing data if possible, 
+  // but here we assume the frontend sends the *complete* object.
+  rowData = headers.map(function (headerName) {
+    var key = getKeyByValue(map, headerName) || headerName;
+    // Handle Date formatting
+    var val = item[key];
+    if (val === undefined || val === null) return '';
+    return val;
+  });
 
-  // (E) 開單類型 -> Fine!U:U
-  var ticketTypes = ['走動管理', 'CCTV', '工安查核', '現檢員', '監造', '營建處', '勞檢'];
-  var ticketRule = SpreadsheetApp.newDataValidation().requireValueInList(ticketTypes).build();
-  fineSheet.getRange('U2:U').setDataValidation(ticketRule);
+  if (newRow) {
+    sheet.appendRow(rowData);
+  } else {
+    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+  }
 
-  // (F) 忠哥辦理罰單分配 -> Fine!W:W
-  var allocTypes = ['處長', '副處長', '課長', '部門經理', '工安經理', '工安課長', '現檢員'];
-  var allocRule = SpreadsheetApp.newDataValidation().requireValueInList(allocTypes).build();
-  fineSheet.getRange('W2:W').setDataValidation(allocRule);
-
-  // 3. 設定公式 (Formulas) - 設定在第 2 列並向下拖曳 (或使用 ArrayFormula)
-  // 為了簡單起見，我們將公式設定在第 2 列，使用者可以根據需要複製
-
-  // (A) 單價 (J2) =IFERROR(VLOOKUP(I2, FineList!C:E, 3, 0), "")
-  fineSheet.getRange('J2').setFormula('=IFERROR(VLOOKUP(I2, FineList!C:E, 3, 0), "")');
-
-  // (B) 單項金額 (O2) =IFERROR(IF(K2="", J2*M2*IF(N2="", 1, N2), K2*M2*IF(N2="", 1, N2)), "")
-  fineSheet.getRange('O2').setFormula('=IFERROR(IF(K2="", J2*M2*IF(N2="", 1, N2), K2*M2*IF(N2="", 1, N2)), "")');
-
-  // (C) 總金額 (P2) =IF(COUNTIF($D$2:D2, D2)=1, SUMIF(D:D, D2, O:O), "")
-  fineSheet.getRange('P2').setFormula('=IF(COUNTIF($D$2:D2, D2)=1, SUMIF(D:D, D2, O:O), "")');
-
-  // (D) 罰單金額備註 (R2)
-  // 修正 VLOOKUP 欄位已符合 FineList
-  var noteFormula = '=IFNA(IF(K2="",TEXT(J2,"#,00"),TEXT(K2,"#,00"))&"元*"&M2&"("&VLOOKUP(I2, FineList!C:G, 5, 0)&")"&IF(N2="","","*加重"&N2&"倍")&"="&TEXT(O2,"#,00")&"元","")';
-  fineSheet.getRange('R2').setFormula(noteFormula);
-
-  Logger.log('✅ Fine System Setup Complete');
+  // Return updated item (or success status)
+  // To be perfectly safe, we might reload the item, but for speed we return what we wrote
+  return { success: true, item: item, action: newRow ? 'create' : 'update' };
 }
 
-// ========== 登入/驗證 Helpers ==========
+function handleDeleteItem(ss, sheetName, id) {
+  var sheet = ss.getSheetByName(sheetName);
+  var map = HEADER_MAP[sheetName];
+  var idHeader = map['id'] || 'ID';
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var idColIndex = headers.indexOf(idHeader);
+
+  if (idColIndex === -1) return { success: false, error: 'ID column not found' };
+
+  var data = sheet.getDataRange().getValues();
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idColIndex]) === String(id)) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex !== -1) {
+    sheet.deleteRow(rowIndex);
+    return { success: true, id: id };
+  }
+  return { success: false, error: 'Item not found' };
+}
+
+// ========== Legacy/Specific Handlers ==========
 
 function handleLogin(ss, username, password) {
   var users = loadData(ss, 'Users');
@@ -574,7 +319,6 @@ function handleGoogleLogin(ss, credential) {
     var googleEmail = payload.email;
     var googleName = payload.name || payload.email;
 
-    // 使用 loadData 會自動將中文標題轉為英文 Key (email, name, role)
     var users = loadData(ss, 'Users');
     var user = users.find(function (u) { return u.email === googleEmail; });
 
@@ -590,6 +334,327 @@ function handleGoogleLogin(ss, credential) {
   }
 }
 
+function handleFullSync(ss, data) {
+  var uploadedFileUrl = "";
+
+  // File Upload (Legacy support)
+  if (data.fileUpload && data.fileUpload.fileData) {
+    try {
+      var folder = DriveApp.getFolderById(CONFIG.UPLOAD_FOLDER_ID);
+      var originalName = data.fileUpload.fileData.name;
+      var contentType = data.fileUpload.fileData.type;
+      var fileExt = originalName.substring(originalName.lastIndexOf('.'));
+
+      var customFileName = originalName;
+      if (data.fileUpload.projectInfo) {
+        var seq = data.fileUpload.projectInfo.sequence || '00';
+        var abbr = data.fileUpload.projectInfo.abbreviation || '未命名';
+        var vDate = data.fileUpload.violationDate || Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+        customFileName = seq + "_" + abbr + "_" + vDate + fileExt;
+      }
+
+      var blob = Utilities.newBlob(Utilities.base64Decode(data.fileUpload.fileData.base64), contentType, customFileName);
+      var file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      uploadedFileUrl = file.getUrl();
+
+      if (data.violations) {
+        data.violations = data.violations.map(function (v) {
+          if (v.id === data.fileUpload.violationId) {
+            v.fileUrl = uploadedFileUrl;
+          }
+          return v;
+        });
+      }
+    } catch (err) {
+      return { success: false, error: err.toString() };
+    }
+  }
+
+  if (data.projects) saveData(ss, 'Projects', data.projects);
+  if (data.violations) saveData(ss, 'Violations', data.violations);
+  if (data.fines) saveData(ss, 'Fine', data.fines);
+  if (data.sections) saveData(ss, 'Section', data.sections);
+  if (data.users) saveData(ss, 'Users', data.users);
+
+  return {
+    success: true,
+    projects: loadData(ss, 'Projects'),
+    violations: loadData(ss, 'Violations'),
+    fines: loadData(ss, 'Fine'),
+    fineList: loadData(ss, 'FineList'),
+    sections: loadData(ss, 'Section'),
+    users: loadData(ss, 'Users'),
+    fileUploadStatus: uploadedFileUrl ? { success: true, fileUrl: uploadedFileUrl, fileName: customFileName } : undefined
+  };
+}
+
+function handleUploadFineScan(ss, data) {
+  try {
+    var scanFolder = DriveApp.getFolderById(CONFIG.SCAN_FOLDER_ID);
+    var fileData = data.fileData;
+    var mimeType = data.mimeType || 'application/pdf';
+
+    var ext = (data.originalName || 'file.pdf').split('.').pop() || 'pdf';
+    var fineRecords = loadData(ss, 'Fine');
+    var ticketFines = fineRecords.filter(function (f) { return f.ticketNumber === data.ticketNumber; });
+    var totalAmount = ticketFines.reduce(function (sum, f) { return sum + (Number(f.subtotal) || 0); }, 0);
+    var projectName = ticketFines.length > 0 ? ticketFines[0].projectName : '';
+
+    var projLabel = projectName || '未知工程';
+    if (projectName) {
+      var projects = loadData(ss, 'Projects');
+      var proj = projects.find(function (p) { return p.name === projectName; });
+      if (proj) {
+        var seq = String(proj.sequence || '').padStart(3, '0');
+        projLabel = seq + (proj.abbreviation || proj.name);
+      }
+    }
+
+    var formattedAmount = totalAmount.toLocaleString ? totalAmount.toLocaleString() : String(totalAmount);
+    var fileName = projLabel + '_$' + formattedAmount + '_' + (data.ticketNumber || 'unknown') + '.' + ext;
+
+    var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
+    var uploadedFile = scanFolder.createFile(blob);
+    uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    var scanFileUrl = uploadedFile.getUrl();
+
+    if (data.ticketNumber) {
+      fineRecords = fineRecords.map(function (f) {
+        if (f.ticketNumber === data.ticketNumber) {
+          f.scanFileName = fileName;
+          f.scanFileUrl = scanFileUrl;
+        }
+        return f;
+      });
+      saveData(ss, 'Fine', fineRecords);
+    }
+
+    return {
+      success: true,
+      scanFileUrl: scanFileUrl,
+      scanFileName: fileName,
+      fines: loadData(ss, 'Fine')
+    };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function handleAddUser(ss, data) {
+  var users = loadData(ss, 'Users');
+  if (users.some(function (u) { return u.email === data.newUser.email; })) {
+    return { success: false, error: '該 Email 已存在' };
+  }
+  var newUser = {
+    email: data.newUser.email,
+    password: data.newUser.password,
+    name: data.newUser.name,
+    role: data.newUser.role || 'user'
+  };
+  users.push(newUser);
+  saveData(ss, 'Users', users);
+  return { success: true, message: '使用者已新增' };
+}
+
+function handleSendEmail(ss, data) {
+  var htmlBody = generateManualHtmlEmail({
+    subject: data.subject,
+    body: data.body,
+    projectName: data.projectName || '-',
+    contractorName: data.contractorName || '-',
+    deadline: data.deadline || '-'
+  });
+
+  var users = loadData(ss, 'Users');
+  var admins = users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.email; });
+  var ccEmails = [];
+  if (data.ccEmail) ccEmails.push(data.ccEmail);
+  ccEmails = ccEmails.concat(admins);
+
+  var uniqueCc = ccEmails.filter(function (item, pos) {
+    return ccEmails.indexOf(item) == pos && item;
+  });
+
+  var emailOptions = {
+    to: data.to,
+    subject: data.subject,
+    htmlBody: htmlBody
+  };
+
+  if (uniqueCc.length > 0) {
+    emailOptions.cc = uniqueCc.join(',');
+  }
+
+  if (data.scanFileUrl) {
+    try {
+      var fileIdMatch = data.scanFileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileIdMatch && fileIdMatch[1]) {
+        var scanFile = DriveApp.getFileById(fileIdMatch[1]);
+        emailOptions.attachments = [scanFile.getBlob()];
+      }
+    } catch (e) {
+      Logger.log('Attachment fail: ' + e.message);
+    }
+  }
+
+  MailApp.sendEmail(emailOptions);
+
+  if (data.violationId) {
+    updateViolationField(ss, data.violationId, 'emailCount', function (current) {
+      return (current || 0) + 1;
+    });
+  }
+  return { success: true, message: 'Email sent' };
+}
+
+function handleGenerateDocument(ss, data) {
+  try {
+    var templateFile = DriveApp.getFileById(CONFIG.TEMPLATE_ID);
+    var targetFolder = DriveApp.getFolderById(CONFIG.TARGET_FOLDER_ID);
+
+    function toROCDate(dateStr) {
+      if (!dateStr) return '';
+      var parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      var year = parseInt(parts[0]) - 1911;
+      return year + '年' + month + '月' + day + '日'; // Note: month/day were missing in scope
+    }
+    // Fix Scope for toROCDate
+    function toROCDateFixed(dateStr) {
+      if (!dateStr) return '';
+      var parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      var year = parseInt(parts[0]) - 1911;
+      var month = parseInt(parts[1]);
+      var day = parseInt(parts[2]);
+      return year + '年' + month + '月' + day + '日';
+    }
+
+    var fileName = '簽辦_' + data.projectName + '_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+    var copiedFile = templateFile.makeCopy(fileName, targetFolder);
+
+    var doc = DocumentApp.openById(copiedFile.getId());
+    var body = doc.getBody();
+
+    body.replaceText('【工程名稱】', data.projectName || '');
+    body.replaceText('【講習截止日期】', toROCDateFixed(data.lectureDeadline));
+    body.replaceText('【承攬商名稱】', data.contractorName || '');
+    body.replaceText('【主辦工作隊】', data.hostTeam || '');
+
+    doc.saveAndClose();
+    copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var documentUrl = copiedFile.getUrl();
+
+    if (data.violationId) {
+      updateViolationField(ss, data.violationId, 'documentUrl', function () { return documentUrl; });
+    }
+
+    return { success: true, documentUrl: documentUrl, documentName: fileName };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function handleUploadScanFile(ss, data) {
+  try {
+    var scanFolder = DriveApp.getFolderById(CONFIG.SCAN_FOLDER_ID);
+    var fileData = data.fileData;
+    var fileName = data.fileName || '掃描檔_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+    var mimeType = data.mimeType || 'application/pdf';
+    var replaceReason = data.replaceReason || null;
+
+    var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
+    var uploadedFile = scanFolder.createFile(blob);
+    uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    var scanFileUrl = uploadedFile.getUrl();
+
+    if (data.violationId) {
+      updateViolationScanFile(ss, data.violationId, fileName, scanFileUrl, replaceReason);
+    }
+
+    return { success: true, scanFileUrl: scanFileUrl, scanFileName: fileName, wasReplaced: !!replaceReason };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function handleUploadEvidence(ss, data) {
+  try {
+    var folder = DriveApp.getFolderById(CONFIG.UPLOAD_FOLDER_ID);
+    var originalName = data.fileName;
+    var mimeType = data.mimeType || 'image/jpeg';
+    var fileExt = originalName.indexOf('.') !== -1 ? originalName.substring(originalName.lastIndexOf('.')) : '.jpg';
+
+    var customFileName = originalName;
+    if (data.projectInfo) {
+      var seq = data.projectInfo.sequence || '00';
+      var abbr = data.projectInfo.abbreviation || '未命名';
+      var vDate = data.violationDate || Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+      customFileName = seq + "_" + abbr + "_" + vDate + fileExt;
+    }
+
+    var blob = Utilities.newBlob(Utilities.base64Decode(data.fileData), mimeType, customFileName);
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var fileUrl = file.getUrl();
+
+    if (data.violationId) {
+      updateViolationField(ss, data.violationId, 'fileUrl', function () { return fileUrl; });
+      updateViolationField(ss, data.violationId, 'fileName', function () { return customFileName; });
+    }
+
+    return { success: true, fileUrl: fileUrl, fileName: customFileName };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// ========== Sheet Initialization ==========
+
+function ensureSheetInitialized(ss, sheetName) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    initSheetWithMap(ss, sheetName);
+  }
+}
+
+function initAllSheets(ss) {
+  initSheetWithMap(ss, 'Projects');
+  initSheetWithMap(ss, 'Violations');
+  initSheetWithMap(ss, 'Users');
+  initSheetWithMap(ss, 'NotificationLogs');
+  initSheetWithMap(ss, 'Fine');
+  initSheetWithMap(ss, 'FineList');
+  initSheetWithMap(ss, 'Section');
+  initDefaultAdmin(ss);
+}
+
+function initSheetWithMap(ss, sheetName) {
+  var chineseHeaders = getHeaders(sheetName);
+  var sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(chineseHeaders);
+  } else {
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(chineseHeaders);
+    } else {
+      var currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      if (currentHeaders.length < chineseHeaders.length) {
+        var missingHeaders = chineseHeaders.slice(currentHeaders.length);
+        if (missingHeaders.length > 0) {
+          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+        }
+      }
+    }
+  }
+  return sheet;
+}
+
 function initDefaultAdmin(ss) {
   var sheet = ss.getSheetByName('Users');
   if (sheet.getLastRow() <= 1) {
@@ -603,51 +668,20 @@ function initDefaultAdmin(ss) {
   }
 }
 
-// ========== 資料映射核心功能 ==========
+// ========== Data Mapping Core ==========
 
-// 取得 Sheet 對應的中文標題陣列 (照 HEADER_MAP 定義順序)
 function getHeaders(sheetName) {
   var map = HEADER_MAP[sheetName];
   if (!map) return [];
   return Object.keys(map).map(function (key) { return map[key]; });
 }
 
-// 初始化 Sheet (使用中文標題)
-function initSheetWithMap(ss, sheetName) {
-  var chineseHeaders = getHeaders(sheetName);
-  var sheet = ss.getSheetByName(sheetName);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(chineseHeaders);
-  } else {
-    // 檢查標題列是否需要補齊
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(chineseHeaders);
-    } else {
-      var currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      if (currentHeaders.length < chineseHeaders.length) {
-        // 補上缺少的標題
-        var missingHeaders = chineseHeaders.slice(currentHeaders.length);
-        if (missingHeaders.length > 0) {
-          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
-        }
-      }
-    }
-  }
-  return sheet;
-}
-
-// 讀取資料 (Sheet 中文 -> JSON 英文)
 function loadData(ss, sheetName) {
   var sheet = ss.getSheetByName(sheetName);
-  // 如果 Sheet 沒資料，回傳空陣列
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   var rows = sheet.getDataRange().getValues();
-  var sheetHeaders = rows[0]; // 實際 Sheet 上的標題 (可能是中文)
-
-  // 建立 反向映射表 (中文標題 -> 英文 Key)
+  var sheetHeaders = rows[0];
   var map = HEADER_MAP[sheetName];
   var reverseMap = {};
   if (map) {
@@ -662,17 +696,9 @@ function loadData(ss, sheetName) {
     var obj = {};
     for (var j = 0; j < sheetHeaders.length; j++) {
       var headerName = sheetHeaders[j];
-      // 關鍵修復：確保能找到對應的英文 Key
       var engKey = reverseMap[headerName];
-
-      // 如果找不到對應的英文 Key，可能是舊的英文標題，或者未定義的欄位
-      // 為了相容性，如果找不到映射，就直接使用 headerName 作為 Key
-      if (!engKey) {
-        engKey = headerName;
-      }
-
+      if (!engKey) engKey = headerName;
       var value = row[j];
-
       if (value instanceof Date) {
         obj[engKey] = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
       } else {
@@ -684,12 +710,9 @@ function loadData(ss, sheetName) {
   return data;
 }
 
-// 儲存資料 (JSON 英文 -> Sheet 中文)
 function saveData(ss, sheetName, data) {
   var sheet = ss.getSheetByName(sheetName);
-  // 重新取得目前 Sheet 上的標題順序，確保寫入位置正確
   var sheetHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
   var map = HEADER_MAP[sheetName];
 
   if (sheet.getLastRow() > 1) {
@@ -700,7 +723,6 @@ function saveData(ss, sheetName, data) {
 
   var newRows = data.map(function (item) {
     return sheetHeaders.map(function (headerName) {
-      // headerName 是中文，要找回對應的英文 Key 才能從 item 取值
       var engKey = null;
       if (map) {
         for (var k in map) {
@@ -710,7 +732,6 @@ function saveData(ss, sheetName, data) {
           }
         }
       }
-      // 如果找不到對應，表示 Sheet 標題可能是英文 (舊資料) 或未定義
       var key = engKey || headerName;
       return item[key] || '';
     });
@@ -719,7 +740,7 @@ function saveData(ss, sheetName, data) {
   sheet.getRange(2, 1, newRows.length, newRows[0].length).setValues(newRows);
 }
 
-// ========== 單一欄位更新 Helper (使用中文標題查找 Column) ==========
+// ========== Field Update Helpers ==========
 
 function getColumnIndex(sheet, headerName) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -751,7 +772,6 @@ function updateViolationField(ss, violationId, engFieldKey, valueUpdater) {
 function updateViolationScanFile(ss, violationId, fileName, fileUrl, replaceReason) {
   var sheet = ss.getSheetByName('Violations');
   var map = HEADER_MAP['Violations'];
-
   var idHeader = map['id'];
   var nameHeader = map['scanFileName'];
   var urlHeader = map['scanFileUrl'];
@@ -766,7 +786,6 @@ function updateViolationScanFile(ss, violationId, fileName, fileUrl, replaceReas
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (data[i][idCol] === violationId) {
-      // 記錄歷史
       if (replaceReason && historyCol !== -1) {
         var oldUrl = data[i][urlCol];
         var oldName = data[i][nameCol];
@@ -785,7 +804,6 @@ function updateViolationScanFile(ss, violationId, fileName, fileUrl, replaceReas
           sheet.getRange(i + 1, historyCol + 1).setValue(JSON.stringify(history));
         }
       }
-
       sheet.getRange(i + 1, nameCol + 1).setValue(fileName);
       sheet.getRange(i + 1, urlCol + 1).setValue(fileUrl);
       break;
@@ -793,37 +811,11 @@ function updateViolationScanFile(ss, violationId, fileName, fileUrl, replaceReas
   }
 }
 
-// ========== 移轉工具 (執行一次即可) ==========
+// ========== Utilities ==========
 
-function updateHeadersToChinese() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  // 更新使用者定義的 Sheet
-  ['Violations', 'Projects', 'Users', 'NotificationLogs', 'Fine', 'FineList', 'Section'].forEach(function (sheetName) {
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return;
-
-    var map = HEADER_MAP[sheetName];
-    if (!map) return;
-
-    // 讀取目前第一列標題
-    var lastCol = sheet.getLastColumn();
-    if (lastCol === 0) return;
-
-    var range = sheet.getRange(1, 1, 1, lastCol);
-    var headers = range.getValues()[0];
-
-    var newHeaders = headers.map(function (h) {
-      // 如果目前標題是英文 Key，就轉成中文
-      return map[h] || h;
-    });
-
-    range.setValues([newHeaders]);
-    Logger.log('✅ ' + sheetName + ' 標題已更新為中文');
-  });
+function getKeyByValue(object, value) {
+  return Object.keys(object).find(key => object[key] === value);
 }
-
-// ========== 輔助功能 ==========
 
 function jsonOutput(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -831,17 +823,8 @@ function jsonOutput(data) {
 }
 
 function generateManualHtmlEmail(data) {
-  return generateHtmlEmail('manual',
-    { contractorName: data.contractorName },
-    { name: data.projectName },
-    'manual'
-  ) + '<hr><p>內容：' + data.body + '</p>';
-}
-
-// 簡化版每日檢查 (需配合中文標題更新)
-function checkDueDates() {
-  // 建議重新對應邏輯再開啟此功能
-  // 因 checkDueDates 依賴欄位讀取，loadData 已經會自動轉回英文 Key
-  // 所以這裡的邏輯其實不用大改，只要確保 loadData 正常運作即可
-  Logger.log('checkDueDates: 請確認 loadData 運作正常後再啟用排程');
+  return "<p>承辦人員您好，</p>" +
+    "<p>承攬商「<b>" + data.contractorName + "</b>」於工程「<b>" + data.projectName + "</b>」之違規事項：" +
+    "<br/>" + data.body + "</p>" +
+    "<p>系統自動發送，請勿直接回覆。</p>";
 }
