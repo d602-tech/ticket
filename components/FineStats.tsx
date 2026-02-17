@@ -491,11 +491,18 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     try {
                         setUploadProgress({ show: true, stage: '正在上傳至伺服器...', fileName: file.name });
                         const base64 = (reader.result as string).split(',')[1];
+                        const ext = file.name.split('.').pop() || 'pdf';
+                        // 組合檔名：序號簡稱_總金額_罰單編號
+                        const proj = projects.find(p => p.name === (currentTicket.projectName || ''));
+                        const projLabel = proj ? `${String(proj.sequence).padStart(3, '0')}${proj.abbreviation}` : (currentTicket.projectName || '未知工程');
+                        const ticket = tickets.find(t => t.ticketNumber === ticketNumber);
+                        const totalAmt = ticket ? ticket.totalAmount.toLocaleString() : '0';
+                        const uploadFileName = `${projLabel}_$${totalAmt}_${ticketNumber}.${ext}`;
                         const result = await callGasApi({
                             action: 'uploadFineScan',
                             ticketNumber,
                             fileData: base64,
-                            fileName: `罰單掃描_${ticketNumber}_${file.name}`,
+                            fileName: uploadFileName,
                             mimeType: file.type
                         });
                         if (result.success && result.fines) {
@@ -534,6 +541,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         const groups: Record<string, TicketGroup> = {};
         fines.forEach(f => {
             const tNo = f.ticketNumber || 'Unknown';
+            const hasScan = !!(f.scanFileUrl && String(f.scanFileUrl).trim());
             if (!groups[tNo]) {
                 groups[tNo] = {
                     ticketNumber: tNo,
@@ -541,14 +549,14 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     projectName: f.projectName || '',
                     items: [],
                     totalAmount: 0,
-                    scanFileName: f.scanFileName,
-                    scanFileUrl: f.scanFileUrl
+                    scanFileName: hasScan ? f.scanFileName : undefined,
+                    scanFileUrl: hasScan ? f.scanFileUrl : undefined
                 };
             }
             groups[tNo].items.push(f);
             groups[tNo].totalAmount += (Number(f.subtotal) || 0);
             // Keep scan file from any item in the group
-            if (f.scanFileUrl && !groups[tNo].scanFileUrl) {
+            if (hasScan && !groups[tNo].scanFileUrl) {
                 groups[tNo].scanFileName = f.scanFileName;
                 groups[tNo].scanFileUrl = f.scanFileUrl;
             }
