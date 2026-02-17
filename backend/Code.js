@@ -40,6 +40,7 @@ var HEADER_MAP = {
     'id': '此欄位請勿更動 (ID)',
     'sequence': '序號',
     'abbreviation': '工程簡稱',
+    'contractNumber': '契約編號',
     'name': '工程名稱',
     'contractor': '承攬商',
     'coordinatorName': '承辦人員',

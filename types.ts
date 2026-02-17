@@ -85,6 +85,7 @@ export interface Project {
   id: string;
   sequence: number;       // 序號
   abbreviation: string;   // 工程簡稱
+  contractNumber?: string; // 契約編號 (New)
   name: string;
   contractor: string; // 承攜商名稱
   coordinatorName: string;
