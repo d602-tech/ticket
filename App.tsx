@@ -92,7 +92,8 @@ function App() {
             setCurrentUserName(user.name);
             setIsAuthenticated(true);
         } else {
-            alert('登入失敗: 未知錯誤');
+            console.error('Login failed args:', success, user);
+            alert(`登入失敗 (Debug): success=${success}, user=${JSON.stringify(user)}`);
         }
     };
 
