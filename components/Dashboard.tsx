@@ -3,7 +3,7 @@ import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import {
-    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users
+    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users, Calendar
 } from 'lucide-react';
 import { Violation, Project, Fine, ViolationStatus } from '../types';
 import { VersionHistory } from './VersionHistory';
@@ -44,7 +44,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
     const stats = useMemo(() => {
         const pendingCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED).length;
         const overdueCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED && getDaysRemaining(v.lectureDeadline) < 0).length;
-        const totalFineAmount = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
+        // Previously totalFineAmount was derived from violations (lecture fees)
+        const totalViolationAmount = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
+        // New: Total from Fines sheet
+        const totalRealFineAmount = fines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
+
         const completedCount = violations.filter(v => v.status === ViolationStatus.COMPLETED).length;
         const totalFineCount = fines.length;
 
@@ -70,7 +74,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         return {
             pendingCount,
             overdueCount,
-            totalFineAmount,
+            totalViolationAmount, // Renamed
+            totalRealFineAmount, // New
             completedCount,
             totalFineCount,
             monthlyFineAmount,
@@ -229,75 +234,117 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             </div>
 
             {/* Hero Stats Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Primary Metric: Total Fines - Spanning 2 cols on LG */}
-                <div className="md:col-span-2 relative overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 hover:shadow-2xl transition-all duration-300 group">
-                    <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
-                        <DollarSign size={140} />
-                    </div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 text-indigo-100 mb-2">
-                            <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
-                                <DollarSign size={20} />
+            <div className="space-y-6">
+                {/* Row 1: Major Totals */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Total Real Fines */}
+                    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 hover:shadow-2xl transition-all duration-300 group">
+                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
+                            <DollarSign size={140} />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 text-indigo-100 mb-2">
+                                <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
+                                    <DollarSign size={20} />
+                                </div>
+                                <span className="text-sm font-medium tracking-wide opacity-90">罰款金額總額</span>
                             </div>
-                            <span className="text-sm font-medium tracking-wide opacity-90">累積罰款總額</span>
+                            <div className="text-5xl font-extrabold tracking-tight mb-4">
+                                ${stats.totalRealFineAmount.toLocaleString()}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-indigo-100/80">
+                                <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
+                                    <FileText size={14} /> 總筆數: {stats.totalFineCount}
+                                </span>
+                            </div>
                         </div>
-                        <div className="text-5xl font-extrabold tracking-tight mb-4">
-                            ${stats.totalFineAmount.toLocaleString()}
+                    </div>
+
+                    {/* Total Violation Lectures */}
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-8 text-white shadow-xl shadow-emerald-200 hover:shadow-2xl transition-all duration-300 group">
+                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
+                            <FileWarning size={140} />
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-indigo-100/80">
-                            <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
-                                <FileText size={14} /> 總筆數: {stats.totalFineCount}
-                            </span>
-                            <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
-                                <CheckCircle2 size={14} /> 已結案: {stats.completedCount}
-                            </span>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 text-emerald-100 mb-2">
+                                <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
+                                    <FileWarning size={20} />
+                                </div>
+                                <span className="text-sm font-medium tracking-wide opacity-90">違規講習總額</span>
+                            </div>
+                            <div className="text-5xl font-extrabold tracking-tight mb-4">
+                                ${stats.totalViolationAmount.toLocaleString()}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-emerald-100/80">
+                                <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
+                                    <CheckCircle2 size={14} /> 已結案: {stats.completedCount}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Secondary Hero: Pending - Spanning 1 col */}
-                <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
-                    <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
-                        <AlertTriangle size={100} className="text-amber-500" />
-                    </div>
-                    <div className="flex flex-col h-full justify-between relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                                <AlertTriangle size={24} />
-                            </div>
-                            <span className="text-slate-500 font-medium text-sm">未結案違規</span>
+                {/* Row 2: Secondary Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {/* Pending */}
+                    <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
+                        <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
+                            <AlertTriangle size={100} className="text-amber-500" />
                         </div>
-                        <div>
-                            <div className="text-4xl font-extrabold text-slate-800 mb-1">{stats.pendingCount}</div>
-                            {stats.overdueCount > 0 && (
-                                <p className="text-xs font-bold text-red-500 flex items-center gap-1">
-                                    <Clock size={12} /> {stats.overdueCount} 件已逾期
+                        <div className="flex flex-col h-full justify-between relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <span className="text-slate-500 font-medium text-sm">未結案違規</span>
+                            </div>
+                            <div>
+                                <div className="text-3xl font-extrabold text-slate-800 mb-1">{stats.pendingCount}</div>
+                                {stats.overdueCount > 0 && (
+                                    <p className="text-xs font-bold text-red-500 flex items-center gap-1">
+                                        <Clock size={12} /> {stats.overdueCount} 件已逾期
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Monthly Amount */}
+                    <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
+                        <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
+                            <Calendar size={100} className="text-blue-500" />
+                        </div>
+                        <div className="flex flex-col h-full justify-between relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                    <DollarSign size={24} />
+                                </div>
+                                <span className="text-slate-500 font-medium text-sm">{stats.month}月罰款</span>
+                            </div>
+                            <div>
+                                <div className="text-3xl font-extrabold text-slate-800 mb-1">${stats.monthlyFineAmount.toLocaleString()}</div>
+                                <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                    共 {stats.monthlyFineCount} 筆
                                 </p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Secondary Hero: Monthly - Spanning 1 col */}
-                <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
-                    <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
-                        <FileText size={100} className="text-blue-500" />
-                    </div>
-                    <div className="flex flex-col h-full justify-between relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-                                <FileText size={24} />
                             </div>
-                            <span className="text-slate-500 font-medium text-sm">{stats.month}月罰款</span>
-                        </div>
-                        <div>
-                            <div className="text-3xl font-bold text-slate-800 mb-1">${stats.monthlyFineAmount.toLocaleString()}</div>
-                            <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                                共 {stats.monthlyFineCount} 筆違規
-                            </p>
                         </div>
                     </div>
+
+                    {/* Monthly Count / Or Viewer Mode Stats */}
+                    {/* Reusing StatCards for variety or similar cards? Let's use similar card style for consistency */}
+                    <StatCard
+                        title={`${stats.month}月罰款筆數`}
+                        value={stats.monthlyFineCount}
+                        icon={FileText}
+                        colorClass="bg-cyan-500"
+                    />
+
+                    <StatCard
+                        title="已結案/已辦理"
+                        value={stats.completedCount}
+                        icon={CheckCircle2}
+                        colorClass="bg-emerald-500"
+                    />
                 </div>
             </div>
 
