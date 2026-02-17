@@ -162,8 +162,27 @@ function handleRequest(e) {
           var scanFolder = DriveApp.getFolderById(scanFolderId);
 
           var fileData = data.fileData;
-          var fileName = data.fileName || '罰單掃描_' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd');
           var mimeType = data.mimeType || 'application/pdf';
+
+          // 從 Fine + Projects 計算檔名：序號簡稱_$總金額_罰單編號.副檔名
+          var ext = (data.originalName || 'file.pdf').split('.').pop() || 'pdf';
+          var fineRecords = loadData(ss, 'Fine');
+          var ticketFines = fineRecords.filter(function (f) { return f.ticketNumber === data.ticketNumber; });
+          var totalAmount = ticketFines.reduce(function (sum, f) { return sum + (Number(f.subtotal) || 0); }, 0);
+          var projectName = ticketFines.length > 0 ? ticketFines[0].projectName : '';
+
+          var projLabel = projectName || '未知工程';
+          if (projectName) {
+            var projects = loadData(ss, 'Projects');
+            var proj = projects.find(function (p) { return p.name === projectName; });
+            if (proj) {
+              var seq = String(proj.sequence || '').padStart(3, '0');
+              projLabel = seq + (proj.abbreviation || proj.name);
+            }
+          }
+
+          var formattedAmount = totalAmount.toLocaleString ? totalAmount.toLocaleString() : String(totalAmount);
+          var fileName = projLabel + '_$' + formattedAmount + '_' + (data.ticketNumber || 'unknown') + '.' + ext;
 
           var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
           var uploadedFile = scanFolder.createFile(blob);
@@ -173,15 +192,14 @@ function handleRequest(e) {
 
           // 更新對應罰單記錄
           if (data.ticketNumber) {
-            var fines = loadData(ss, 'Fine');
-            fines = fines.map(function (f) {
+            fineRecords = fineRecords.map(function (f) {
               if (f.ticketNumber === data.ticketNumber) {
                 f.scanFileName = fileName;
                 f.scanFileUrl = scanFileUrl;
               }
               return f;
             });
-            saveData(ss, 'Fine', fines);
+            saveData(ss, 'Fine', fineRecords);
           }
 
           output.success = true;
