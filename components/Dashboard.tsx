@@ -3,7 +3,7 @@ import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import {
-    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText
+    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users
 } from 'lucide-react';
 import { Violation, Project, Fine, ViolationStatus } from '../types';
 import { VersionHistory } from './VersionHistory';
@@ -473,10 +473,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                     </div>
                                     <div className="text-right">
                                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${v.status === ViolationStatus.COMPLETED
-                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                : v.status === ViolationStatus.PENDING
-                                                    ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                                    : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                            : v.status === ViolationStatus.PENDING
+                                                ? 'bg-amber-50 text-amber-600 border-amber-100'
+                                                : 'bg-indigo-50 text-indigo-600 border-indigo-100'
                                             }`}>
                                             {getStatusLabel(v.status)}
                                         </span>
