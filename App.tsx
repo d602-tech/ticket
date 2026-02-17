@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     LayoutDashboard, FileWarning, Briefcase, Plus, Menu, X, LogOut,
-    Loader2, Database, Users, DollarSign, Edit2, Trash2
+    Loader2, Database, Users, DollarSign, Edit2, Trash2,
+    Pickaxe, Building2, Wrench, Zap, MapPin, Hammer, FileText // Added missing icons
 } from 'lucide-react';
 import {
     Violation, Project, Fine, FineList, Section, User, ViolationStatus, Coordinator
