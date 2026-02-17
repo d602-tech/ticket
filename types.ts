@@ -44,6 +44,7 @@ export interface Fine {
   issuer?: string;         // 開單人
   contractor?: string;     // 承攬商
   violationItem?: string;  // 違規項目
+  unit?: string;           // 單位
   unitPrice?: number | string;      // 單價
   unitPriceAdj?: number | string;   // 單價修改
   unitPriceAdjNote?: string;// 單價修改備註
