@@ -531,6 +531,16 @@ function App() {
         reader.readAsBinaryString(file);
     };
 
+    const TEAM_STYLES: Record<string, { border: string, bg: string, text: string, badge: string, icon: string }> = {
+        '土木工作隊': { border: 'border-l-4 border-l-amber-500', bg: 'bg-amber-50/30', text: 'text-amber-800', badge: 'bg-amber-100 text-amber-700', icon: 'text-amber-600' },
+        '建築工作隊': { border: 'border-l-4 border-l-emerald-500', bg: 'bg-emerald-50/30', text: 'text-emerald-800', badge: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-600' },
+        '機械工作隊': { border: 'border-l-4 border-l-blue-500', bg: 'bg-blue-50/30', text: 'text-blue-800', badge: 'bg-blue-100 text-blue-700', icon: 'text-blue-600' },
+        '電氣工作隊': { border: 'border-l-4 border-l-purple-500', bg: 'bg-purple-50/30', text: 'text-purple-800', badge: 'bg-purple-100 text-purple-700', icon: 'text-purple-600' },
+        '中部工作隊': { border: 'border-l-4 border-l-rose-500', bg: 'bg-rose-50/30', text: 'text-rose-800', badge: 'bg-rose-100 text-rose-700', icon: 'text-rose-600' },
+        '南部工作隊': { border: 'border-l-4 border-l-cyan-500', bg: 'bg-cyan-50/30', text: 'text-cyan-800', badge: 'bg-cyan-100 text-cyan-700', icon: 'text-cyan-600' },
+        'default': { border: 'border-l-4 border-l-slate-200', bg: 'bg-white', text: 'text-slate-700', badge: 'bg-slate-100 text-slate-600', icon: 'text-slate-400' }
+    };
+
     const renderProjects = () => (
         <div className="space-y-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -548,28 +558,36 @@ function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {projects.filter(p => projectHostTeamFilter === 'ALL' || p.hostTeam === projectHostTeamFilter).map(project => (
-                    <div key={project.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="bg-indigo-50 p-3 rounded-lg"><Briefcase className="w-6 h-6 text-indigo-600" /></div>
-                            <div className="flex gap-2">
-                                <button onClick={() => { setEditingProject(project); setProjectFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDeleteProject(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                {projects.filter(p => projectHostTeamFilter === 'ALL' || p.hostTeam === projectHostTeamFilter).map(project => {
+                    const style = TEAM_STYLES[project.hostTeam || ''] || TEAM_STYLES['default'];
+                    return (
+                        <div key={project.id} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow relative overflow-hidden ${style.border} ${style.bg}`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`p-3 rounded-lg bg-white/50 border border-slate-100 shadow-sm`}>
+                                    <Briefcase className={`w-6 h-6 ${style.icon}`} />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => { setEditingProject(project); setProjectFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                    <button onClick={() => handleDeleteProject(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${style.badge}`}>#{project.sequence !== undefined ? String(project.sequence).padStart(3, '0') : '-'}</span>
+                                {project.contractNumber && <span className="bg-slate-800 text-white text-xs font-mono px-2 py-0.5 rounded shadow-sm">{project.contractNumber}</span>}
+                                {project.abbreviation && <span className="bg-white border border-slate-200 text-slate-600 text-xs font-medium px-2 py-0.5 rounded">{project.abbreviation}</span>}
+                            </div>
+                            <h3 className={`font-bold text-lg mb-1 leading-tight ${style.text}`}>{project.name}</h3>
+                            <p className="text-sm text-slate-500 mb-3 flex items-center gap-2"><Briefcase size={14} />{project.contractor}</p>
+
+                            {project.hostTeam && <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mb-4 ${style.badge}`}>{project.hostTeam}</span>}
+
+                            <div className="pt-4 border-t border-slate-200/60 space-y-2">
+                                <div className="flex justify-between text-sm"><span className="text-slate-500">承辦人員</span><span className="font-medium text-slate-700">{project.coordinatorName}</span></div>
+                                <div className="flex justify-between text-sm"><span className="text-slate-500">聯絡信箱</span><span className="font-medium text-slate-700 truncate max-w-[150px]" title={project.coordinatorEmail}>{project.coordinatorEmail || '-'}</span></div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded">#{project.sequence || '-'}</span>
-                            {project.abbreviation && <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded">{project.abbreviation}</span>}
-                        </div>
-                        <h3 className="font-bold text-lg text-slate-800 mb-1">{project.name}</h3>
-                        <p className="text-sm text-slate-500 mb-2 flex items-center gap-2"><Briefcase size={14} />{project.contractor}</p>
-                        {project.hostTeam && <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mb-4 bg-slate-100 text-slate-700 border border-slate-200">{project.hostTeam}</span>}
-                        <div className="pt-4 border-t border-slate-100 space-y-2">
-                            <div className="flex justify-between text-sm"><span className="text-slate-500">承辦人員</span><span className="font-medium text-slate-800">{project.coordinatorName}</span></div>
-                            <div className="flex justify-between text-sm"><span className="text-slate-500">聯絡信箱</span><span className="font-medium text-slate-800 truncate max-w-[150px]" title={project.coordinatorEmail}>{project.coordinatorEmail || '-'}</span></div>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {isProjectFormOpen && (
