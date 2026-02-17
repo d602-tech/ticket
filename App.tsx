@@ -85,14 +85,14 @@ function App() {
     }, [isAuthenticated, currentUserRole]);
 
     // Login Handler
-    const handleLogin = async (result: any) => {
-        if (result.success && result.user) {
-            setCurrentUserEmail(result.user.email);
-            setCurrentUserRole(result.user.role);
-            setCurrentUserName(result.user.name);
+    const handleLogin = async (success: boolean, user?: any) => {
+        if (success && user) {
+            setCurrentUserEmail(user.email);
+            setCurrentUserRole(user.role);
+            setCurrentUserName(user.name);
             setIsAuthenticated(true);
         } else {
-            alert('登入失敗: ' + (result.error || '未知錯誤'));
+            alert('登入失敗: 未知錯誤');
         }
     };
 
