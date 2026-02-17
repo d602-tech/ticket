@@ -531,73 +531,153 @@ function App() {
         reader.readAsBinaryString(file);
     };
 
-    const TEAM_STYLES: Record<string, { border: string, bg: string, text: string, badge: string, icon: string }> = {
-        '土木工作隊': { border: 'border-l-4 border-l-amber-500', bg: 'bg-amber-50/30', text: 'text-amber-800', badge: 'bg-amber-100 text-amber-700', icon: 'text-amber-600' },
-        '建築工作隊': { border: 'border-l-4 border-l-emerald-500', bg: 'bg-emerald-50/30', text: 'text-emerald-800', badge: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-600' },
-        '機械工作隊': { border: 'border-l-4 border-l-blue-500', bg: 'bg-blue-50/30', text: 'text-blue-800', badge: 'bg-blue-100 text-blue-700', icon: 'text-blue-600' },
-        '電氣工作隊': { border: 'border-l-4 border-l-purple-500', bg: 'bg-purple-50/30', text: 'text-purple-800', badge: 'bg-purple-100 text-purple-700', icon: 'text-purple-600' },
-        '中部工作隊': { border: 'border-l-4 border-l-rose-500', bg: 'bg-rose-50/30', text: 'text-rose-800', badge: 'bg-rose-100 text-rose-700', icon: 'text-rose-600' },
-        '南部工作隊': { border: 'border-l-4 border-l-cyan-500', bg: 'bg-cyan-50/30', text: 'text-cyan-800', badge: 'bg-cyan-100 text-cyan-700', icon: 'text-cyan-600' },
-        'default': { border: 'border-l-4 border-l-slate-200', bg: 'bg-white', text: 'text-slate-700', badge: 'bg-slate-100 text-slate-600', icon: 'text-slate-400' }
+    // Project View
+    // ... existing export/import handlers ...
+
+    const TEAM_CONFIG: Record<string, { color: string, icon: React.ElementType, label: string }> = {
+        '土木工作隊': { color: 'amber', icon: Pickaxe, label: '土木' },
+        '建築工作隊': { color: 'emerald', icon: Building2, label: '建築' },
+        '機械工作隊': { color: 'blue', icon: Wrench, label: '機械' },
+        '電氣工作隊': { color: 'purple', icon: Zap, label: '電氣' },
+        '中部工作隊': { color: 'rose', icon: MapPin, label: '中部' },
+        '南部工作隊': { color: 'cyan', icon: MapPin, label: '南部' },
+        'default': { color: 'slate', icon: Briefcase, label: '其他' }
+    };
+
+    const getProjectStyle = (team: string | undefined) => {
+        const key = Object.keys(TEAM_CONFIG).find(k => team?.includes(k)) || 'default';
+        return TEAM_CONFIG[key];
     };
 
     const renderProjects = () => (
         <div className="space-y-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div className="flex overflow-x-auto pb-2 md:pb-0 items-center gap-2 w-full md:w-auto md:flex-wrap no-scrollbar">
-                    <button onClick={() => setProjectHostTeamFilter('ALL')} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === 'ALL' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>全部</button>
-                    {HOST_TEAMS.map(team => (
-                        <button key={team} onClick={() => setProjectHostTeamFilter(team)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${projectHostTeamFilter === team ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>{team}</button>
-                    ))}
+                    <button onClick={() => setProjectHostTeamFilter('ALL')} className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all ${projectHostTeamFilter === 'ALL' ? 'bg-slate-800 text-white shadow-lg shadow-slate-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>全部</button>
+                    {HOST_TEAMS.map(team => {
+                        const config = TEAM_CONFIG[team];
+                        const isSelected = projectHostTeamFilter === team;
+                        // Dynamic class for selected state based on team color would be nice, but simple slate-800 is cleaner for consistency
+                        return (
+                            <button key={team} onClick={() => setProjectHostTeamFilter(team)} className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${isSelected ? 'bg-slate-800 text-white shadow-lg shadow-slate-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
+                                <config.icon size={14} />
+                                {team}
+                            </button>
+                        );
+                    })}
                 </div>
                 <div className="flex gap-2 ml-auto">
                     <button onClick={handleExportProjects} className="flex items-center gap-1 px-3 py-2 border bg-white hover:bg-slate-50 rounded-lg text-sm text-slate-600 shadow-sm"><Loader2 size={16} /> 匯出</button>
                     <label className="flex items-center gap-1 px-3 py-2 border bg-white hover:bg-slate-50 rounded-lg text-sm text-slate-600 cursor-pointer shadow-sm"><Loader2 size={16} /> 匯入<input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportProjects} /></label>
-                    <button onClick={() => { setEditingProject({ sequence: 0, abbreviation: '', contractNumber: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' }); setProjectFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"><Plus size={16} />新增工程專案</button>
+                    <button onClick={() => { setEditingProject({ sequence: 0, abbreviation: '', contractNumber: '', name: '', coordinatorName: '', coordinatorEmail: '', contractor: '' }); setProjectFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-slate-200"><Plus size={16} />新增工程</button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {projects.filter(p => projectHostTeamFilter === 'ALL' || p.hostTeam === projectHostTeamFilter).map(project => {
-                    const style = TEAM_STYLES[project.hostTeam || ''] || TEAM_STYLES['default'];
+                    const style = getProjectStyle(project.hostTeam);
+                    const Icon = style.icon;
+
+                    // Tailwind color mapping is tricky with dynamic strings if not safe-listed. 
+                    // To be safe, we might need a map for classes, OR use style attribute for specific hex if needed, 
+                    // but standard template literals usually work in JIT if the values are static strings in source.
+                    // Since I defined 'color' keys (amber, emerald etc), and classes like `bg-amber-500` exist in generic css or safe-listed?
+                    // Let's use a safe mapping approach or standard classes if we are sure.
+                    // Assuming standard Tailwind colors.
+
+                    const colorClasses = {
+                        amber: { header: 'bg-amber-500', light: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                        emerald: { header: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                        blue: { header: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+                        purple: { header: 'bg-purple-500', light: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+                        rose: { header: 'bg-rose-500', light: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+                        cyan: { header: 'bg-cyan-500', light: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+                        slate: { header: 'bg-slate-500', light: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+                    }[style.color] || { header: 'bg-slate-500', light: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' };
+
                     return (
-                        <div key={project.id} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow relative overflow-hidden ${style.border} ${style.bg}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`p-3 rounded-lg bg-white/50 border border-slate-100 shadow-sm`}>
-                                    <Briefcase className={`w-6 h-6 ${style.icon}`} />
+                        <div key={project.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                            {/* Color Header */}
+                            <div className={`${colorClasses.header} px-6 py-4 flex justify-between items-center relative overflow-hidden`}>
+                                <div className="absolute -right-4 -top-4 opacity-20 transform rotate-12">
+                                    <Icon size={80} className="text-white" />
                                 </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => { setEditingProject(project); setProjectFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                    <button onClick={() => handleDeleteProject(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                <div className="flex items-center gap-3 relative z-10 text-white">
+                                    <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                                        <Icon size={20} />
+                                    </div>
+                                    <span className="font-bold tracking-wide text-sm">{project.hostTeam || '未分類工作隊'}</span>
+                                </div>
+                                <div className="relative z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setEditingProject(project); setProjectFormOpen(true); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-slate-800 rounded-lg transition-colors backdrop-blur-sm"><Edit2 size={16} /></button>
+                                    <button onClick={() => handleDeleteProject(project.id)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-red-600 rounded-lg transition-colors backdrop-blur-sm"><Trash2 size={16} /></button>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${style.badge}`}>#{project.sequence !== undefined ? String(project.sequence).padStart(3, '0') : '-'}</span>
-                                {project.contractNumber && <span className="bg-slate-800 text-white text-xs font-mono px-2 py-0.5 rounded shadow-sm">{project.contractNumber}</span>}
-                                {project.abbreviation && <span className="bg-white border border-slate-200 text-slate-600 text-xs font-medium px-2 py-0.5 rounded">{project.abbreviation}</span>}
-                            </div>
-                            <h3 className={`font-bold text-lg mb-1 leading-tight ${style.text}`}>{project.name}</h3>
-                            <p className="text-sm text-slate-500 mb-3 flex items-center gap-2"><Briefcase size={14} />{project.contractor}</p>
 
-                            {project.hostTeam && <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mb-4 ${style.badge}`}>{project.hostTeam}</span>}
+                            {/* Body */}
+                            <div className="p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {project.contractNumber ? (
+                                                <span className="bg-slate-800 text-white text-xs font-mono px-2 py-1 rounded shadow-sm flex items-center gap-1">
+                                                    <FileText size={10} /> {project.contractNumber}
+                                                </span>
+                                            ) : (
+                                                <span className="bg-slate-100 text-slate-400 text-xs px-2 py-1 rounded">無契約號</span>
+                                            )}
+                                            {project.sequence !== undefined && (
+                                                <span className="bg-slate-100 text-slate-500 text-xs font-mono px-2 py-1 rounded">
+                                                    #{String(project.sequence).padStart(3, '0')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <h3 className="font-extrabold text-lg text-slate-800 leading-snug line-clamp-2 min-h-[3.5rem]" title={project.name}>
+                                            {project.name}
+                                        </h3>
+                                    </div>
+                                </div>
 
-                            <div className="pt-4 border-t border-slate-200/60 space-y-2">
-                                <div className="flex justify-between text-sm"><span className="text-slate-500">承辦人員</span><span className="font-medium text-slate-700">{project.coordinatorName}</span></div>
-                                <div className="flex justify-between text-sm"><span className="text-slate-500">聯絡信箱</span><span className="font-medium text-slate-700 truncate max-w-[150px]" title={project.coordinatorEmail}>{project.coordinatorEmail || '-'}</span></div>
+                                {/* Info Grid */}
+                                <div className="grid grid-cols-2 gap-4 mt-6">
+                                    <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Building2 size={12} /> 承攬廠商</div>
+                                        <div className="font-bold text-slate-700 truncate">{project.contractor || '-'}</div>
+                                    </div>
+                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Users size={12} /> 承辦人</div>
+                                        <div className="font-medium text-slate-700 truncate">{project.coordinatorName || '-'}</div>
+                                    </div>
+                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Briefcase size={12} /> 簡稱</div>
+                                        <div className="font-medium text-slate-700 truncate">{project.abbreviation || '-'}</div>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Footer/Contact */}
+                            {project.coordinatorEmail && (
+                                <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs text-slate-500">
+                                    <span>聯絡信箱</span>
+                                    <span className="font-mono truncate max-w-[180px]">{project.coordinatorEmail}</span>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
             {isProjectFormOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h2 className="text-lg font-bold text-slate-800">{editingProject.id ? '編輯工程' : '新增工程'}</h2>
-                            <button onClick={() => setProjectFormOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <Briefcase className="text-indigo-600" />
+                                {editingProject.id ? '編輯工程專案' : '新增工程專案'}
+                            </h2>
+                            <button onClick={() => setProjectFormOpen(false)} className="bg-slate-100 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"><X size={20} /></button>
                         </div>
-                        <form onSubmit={handleSaveProject} className="p-6 space-y-4">
+                        <form onSubmit={handleSaveProject} className="p-8 space-y-6">
                             {/* Simplified form fields for brevity in this rewrite, assume full fields exist */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-700 mb-1">序號</label><input type="number" min="1" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.sequence || ''} onChange={e => setEditingProject({ ...editingProject, sequence: parseInt(e.target.value) || 0 })} placeholder="自動編號" /></div>
