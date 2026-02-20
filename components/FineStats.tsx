@@ -1048,7 +1048,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 >
                                     <option value="">選擇違規項目...</option>
                                     {fineList.map((item, idx) => (
-                                        <option key={idx} value={item.violationItem}>{item.violationItem?.substring(0, 20)}...</option>
+                                        <option key={idx} value={item.violationItem} title={item.violationItem}>{item.violationItem}</option>
                                     ))}
                                 </select>
                             </div>
