@@ -236,6 +236,15 @@ function handleUpdateItem(ss, sheetName, item) {
     }
   }
 
+  // Ensure all configured headers exist in the sheet
+  var expectedHeaders = Object.keys(map).map(function (k) { return map[k]; });
+  var missingHeaders = expectedHeaders.filter(function (h) { return headers.indexOf(h) === -1; });
+  if (missingHeaders.length > 0) {
+    sheet.getRange(1, headers.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+    // Reload headers
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+
   var rowData = [];
   var newRow = false;
 
