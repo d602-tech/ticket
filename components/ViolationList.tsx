@@ -49,25 +49,25 @@ export const ViolationList: React.FC<ViolationListProps> = ({
     }, [violations, searchTerm, statusFilter, hostTeamFilter, projects]);
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
             {/* Toolbar */}
-            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto flex-1">
                     <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                         <input
                             type="text"
                             placeholder="搜尋承攬商或工程..."
-                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-3 w-full md:w-auto md:flex">
                         <div className="relative">
-                            <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                             <select
-                                className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value as any)}
                             >
@@ -79,9 +79,9 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                             </select>
                         </div>
                         <div className="relative">
-                            <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                             <select
-                                className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
                                 value={hostTeamFilter}
                                 onChange={(e) => setHostTeamFilter(e.target.value)}
                             >
@@ -95,7 +95,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                 </div>
                 <button
                     onClick={onAdd}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-slate-300 dark:shadow-none"
                 >
                     <Plus size={16} />
                     新增紀錄
@@ -114,22 +114,22 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                             const daysRemaining = getDaysRemaining(violation.lectureDeadline);
                             const isOverdue = daysRemaining < 0 && violation.status === ViolationStatus.PENDING;
                             return (
-                                <div key={violation.id} className="p-4 hover:bg-slate-50/50 active:bg-slate-100 transition-colors">
+                                <div key={violation.id} className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 active:bg-slate-100 transition-colors">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1 mr-2">
-                                            <h3 className="font-bold text-slate-900 mb-1 leading-snug">{violation.contractorName}</h3>
-                                            <p className="text-xs text-slate-500 leading-normal">{violation.projectName}</p>
+                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 leading-snug">{violation.contractorName}</h3>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">{violation.projectName}</p>
                                         </div>
-                                        <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
-                                            violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
-                                                violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
-                                                    'bg-yellow-100 text-yellow-700'
+                                        <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' :
+                                            violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                                                violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' :
+                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
                                             }`}>
                                             {getStatusLabel(violation.status)}
                                         </span>
                                     </div>
 
-                                    <p className="text-sm text-slate-600 mb-3 line-clamp-2 bg-slate-50/80 p-2.5 rounded-lg">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2 bg-slate-50/80 dark:bg-slate-900/50 p-2.5 rounded-lg">
                                         {violation.description}
                                     </p>
 

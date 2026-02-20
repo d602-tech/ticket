@@ -165,22 +165,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                         </div>
                         <div className="text-4xl font-bold">${viewerMonthlyTotal.toLocaleString()}</div>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 text-slate-500 mb-2">
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+                        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
                             <FileText size={24} />
                             <span className="text-sm font-medium">本月罰單件數</span>
                         </div>
-                        <div className="text-4xl font-bold text-slate-800">{viewerMonthlyFines.length} 件</div>
+                        <div className="text-4xl font-bold text-slate-800 dark:text-white">{viewerMonthlyFines.length} 件</div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-6 border-b border-slate-50">
-                        <h3 className="font-bold text-slate-700">罰單明細</h3>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="p-6 border-b border-slate-50 dark:border-slate-700/50">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200">罰單明細</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-medium">
+                            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 font-medium">
                                 <tr>
                                     <th className="px-6 py-3">日期</th>
                                     <th className="px-6 py-3">承攬商</th>
@@ -189,14 +189,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                     <th className="px-6 py-3 text-right">金額</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                 {viewerMonthlyFines.map((f, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50">
+                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-500 dark:text-slate-300">
                                         <td className="px-6 py-4">{f.date}</td>
-                                        <td className="px-6 py-4 font-medium text-slate-700">{f.contractor}</td>
-                                        <td className="px-6 py-4 text-slate-500">{f.projectName}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">{f.contractor}</td>
+                                        <td className="px-6 py-4">{f.projectName}</td>
                                         <td className="px-6 py-4">{f.violationItem}</td>
-                                        <td className="px-6 py-4 text-right font-mono text-slate-700">
+                                        <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
                                             ${Number(f.subtotal).toLocaleString()}
                                         </td>
                                     </tr>
@@ -221,12 +221,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         <div className="animate-fade-in space-y-6">
             {/* Header & Stats */}
             <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-bold text-slate-700">{stats.year}年{stats.month}月 罰款統計</h2>
+                <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">{stats.year}年{stats.month}月 罰款統計</h2>
                 <input
                     type="month"
                     value={dashboardMonth}
                     onChange={e => setDashboardMonth(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    className="border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white shadow-sm"
                 />
             </div>
 
@@ -284,19 +284,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 {/* Row 2: Secondary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {/* Pending */}
-                    <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
-                        <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
+                    <div className='bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-all group relative overflow-hidden'>
+                        <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
                             <AlertTriangle size={100} className="text-amber-500" />
                         </div>
                         <div className="flex flex-col h-full justify-between relative z-10">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
                                     <AlertTriangle size={24} />
                                 </div>
-                                <span className="text-slate-500 font-medium text-sm">未結案違規</span>
+                                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">未結案違規</span>
                             </div>
                             <div>
-                                <div className="text-3xl font-extrabold text-slate-800 mb-1">{stats.pendingCount}</div>
+                                <div className="text-3xl font-extrabold text-slate-800 dark:text-white mb-1">{stats.pendingCount}</div>
                                 {stats.overdueCount > 0 && (
                                     <p className="text-xs font-bold text-red-500 flex items-center gap-1">
                                         <Clock size={12} /> {stats.overdueCount} 件已逾期
@@ -307,19 +307,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     </div>
 
                     {/* Monthly Amount */}
-                    <div className='bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden'>
-                        <div className="absolute -right-6 -top-6 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity rotate-12">
+                    <div className='bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-all group relative overflow-hidden'>
+                        <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
                             <Calendar size={100} className="text-blue-500" />
                         </div>
                         <div className="flex flex-col h-full justify-between relative z-10">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
                                     <DollarSign size={24} />
                                 </div>
-                                <span className="text-slate-500 font-medium text-sm">{stats.month}月罰款</span>
+                                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">{stats.month}月罰款</span>
                             </div>
                             <div>
-                                <div className="text-3xl font-extrabold text-slate-800 mb-1">${stats.monthlyFineAmount.toLocaleString()}</div>
+                                <div className="text-3xl font-extrabold text-slate-800 dark:text-white mb-1">${stats.monthlyFineAmount.toLocaleString()}</div>
                                 <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
                                     共 {stats.monthlyFineCount} 筆
                                 </p>
@@ -347,30 +347,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
             {/* Urgent Alerts */}
             {stats.urgentViolations.length > 0 && (
-                <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 border border-amber-100 rounded-3xl p-6 shadow-sm backdrop-blur-sm">
+                <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-900/30 dark:to-orange-900/30 border border-amber-100 dark:border-amber-900/50 rounded-3xl p-6 shadow-sm backdrop-blur-sm">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/20 text-white animate-pulse">
                             <AlertTriangle size={20} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-extrabold text-amber-950 tracking-tight">
+                            <h2 className="text-lg font-extrabold text-amber-950 dark:text-amber-500 tracking-tight">
                                 到期前5日提醒
                             </h2>
-                            <p className="text-amber-700/80 text-sm font-medium">{stats.urgentViolations.length} 件即將到期，請盡速處理</p>
+                            <p className="text-amber-700/80 dark:text-amber-400/80 text-sm font-medium">{stats.urgentViolations.length} 件即將到期，請盡速處理</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {stats.urgentViolations.map(v => (
-                            <div key={v.id} className="flex flex-col justify-between bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-amber-100/50 hover:shadow-md transition-all hover:-translate-y-1 duration-300">
+                            <div key={v.id} className="flex flex-col justify-between bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-amber-100/50 dark:border-amber-900/30 hover:shadow-md transition-all hover:-translate-y-1 duration-300">
                                 <div className="mb-4">
                                     <div className="flex justify-between items-start mb-3">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-bold">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-xs rounded-full font-bold">
                                             <Clock size={12} /> 剩 {getDaysRemaining(v.lectureDeadline)} 天
                                         </span>
                                         <span className="text-xs text-slate-400 font-medium">{formatDate(v.lectureDeadline)}</span>
                                     </div>
-                                    <p className="font-bold text-slate-800 line-clamp-1 text-base mb-1" title={v.projectName}>{v.projectName}</p>
-                                    <p className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-1 rounded-md inline-block">{v.contractorName}</p>
+                                    <p className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1 text-base mb-1" title={v.projectName}>{v.projectName}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-md inline-block">{v.contractorName}</p>
                                 </div>
                                 <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
                                     {v.description || '無說明'}
@@ -381,13 +381,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 </div>
             )}
 
-            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 {/* 案件分佈 (Pie) */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">各工作隊案件分佈</h3>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">各工作隊案件分佈</h3>
                             <p className="text-sm text-slate-400">各部門違規佔比統計</p>
                         </div>
                         <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl">
@@ -419,13 +418,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 </div>
 
                 {/* 狀態統計 (Bar) */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">案件狀態統計</h3>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">案件狀態統計</h3>
                             <p className="text-sm text-slate-400">目前所有違規案件處理進度</p>
                         </div>
-                        <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-xl">
                             <CheckCircle2 size={20} />
                         </div>
                     </div>

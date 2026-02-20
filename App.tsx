@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     LayoutDashboard, FileWarning, Briefcase, Plus, Menu, X, LogOut,
     Loader2, Database, Users, DollarSign, Edit2, Trash2,
-    Pickaxe, Building2, Wrench, Zap, MapPin, Hammer, FileText // Added missing icons
+    Pickaxe, Building2, Wrench, Zap, MapPin, Hammer, FileText, Sun, Moon // Added missing icons
 } from 'lucide-react';
 import {
     Violation, Project, Fine, FineList, Section, User, ViolationStatus, Coordinator
@@ -56,6 +56,24 @@ function App() {
 
     // User Form State
     const [newUserForm, setNewUserForm] = useState({ email: '', password: '', name: '', role: 'user' });
+
+    // Theme State
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('theme') === 'dark';
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [isDarkMode]);
 
     // Initialization
     useEffect(() => {
@@ -713,7 +731,7 @@ function App() {
     if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
 
     return (
-        <div className="min-h-screen flex bg-slate-100 text-slate-800 font-sans relative">
+        <div className="min-h-screen flex bg-slate-100 text-slate-800 font-sans relative dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
             {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden glass" onClick={() => setIsSidebarOpen(false)} />}
 
             <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-2xl transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -739,11 +757,11 @@ function App() {
                 </div>
             </aside>
 
-            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full bg-slate-50">
+            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full bg-slate-50 dark:bg-slate-900">
                 <header className="flex justify-between items-center mb-6 md:mb-8">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-600 md:hidden"><Menu size={24} /></button>
-                        <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-600 dark:text-slate-300 md:hidden"><Menu size={24} /></button>
+                        <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">
                             {view === 'DASHBOARD' && '系統總覽'}
                             {view === 'VIOLATIONS' && '違規講習紀錄'}
                             {view === 'PROJECTS' && '工程專案管理'}
@@ -751,6 +769,14 @@ function App() {
                             {view === 'FINE_STATS' && '罰款統計暨違規講習'}
                             {view === 'PERSONNEL' && '開單人員管理'}
                         </h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                        </button>
                     </div>
                 </header>
 

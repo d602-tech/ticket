@@ -9,6 +9,15 @@ interface Version {
 
 const versions: Version[] = [
     {
+        version: 'v1.6',
+        date: '2026-02-20',
+        features: [
+            '優化整體排版與配色',
+            '新增亮暗色系 (Light/Dark Mode) 切換按鈕',
+            '補齊精簡化的專案表單與儀表板表格'
+        ]
+    },
+    {
         version: 'v1.5',
         date: '2026-02-17',
         features: [
