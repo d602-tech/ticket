@@ -20,6 +20,7 @@ interface FineStatsProps {
     onSaveFines: (fines: Fine[]) => void;
     onSaveSections: (sections: Section[]) => void;
     onSaveViolation: (violation: Violation) => Promise<void>;
+    role?: string;
 }
 
 // Helper to group fines by ticket number
@@ -33,7 +34,7 @@ interface TicketGroup {
     scanFileUrl?: string;
 }
 
-export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation }: FineStatsProps) {
+export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation, role }: FineStatsProps) {
     const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +78,13 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     const [currentSection, setCurrentSection] = useState<Partial<Section>>({});
 
     // --- Effects for Ticket Level ---
+
+    // Default tab for fine_inputter
+    useEffect(() => {
+        if (role === 'fine_inputter') {
+            setActiveTab('manage');
+        }
+    }, [role]);
 
     // Auto-fill Host Team/Contractor/ID based on Project
     useEffect(() => {
@@ -268,6 +276,11 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         }
         if (!currentTicket.ticketNumber || !currentTicket.projectName || !currentTicket.date) {
             alert('請填寫罰單編號、日期與工程名稱');
+            return;
+        }
+
+        if (editTicketNumber && !currentTicket.note) {
+            alert('修改已存之罰款單必須填寫「備註/修改原因」');
             return;
         }
 
@@ -893,8 +906,13 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 </select>
                             </div>
                             <div className="md:col-span-3">
-                                <label className="block text-sm font-medium text-slate-700 mb-1">備註</label>
-                                <input type="text" className="w-full p-2 border rounded-lg" value={currentTicket.note || ''} onChange={e => setCurrentTicket({ ...currentTicket, note: e.target.value })} />
+                                <label className={`block text-sm font-bold mb-1 ${editTicketNumber ? 'text-red-600' : 'text-slate-700'}`}>
+                                    備註 / 修改原因 {editTicketNumber && '*'}
+                                </label>
+                                <input type="text" className={`w-full p-2 border rounded-lg ${editTicketNumber ? 'border-red-300 bg-red-50' : ''}`}
+                                    value={currentTicket.note || ''} onChange={e => setCurrentTicket({ ...currentTicket, note: e.target.value })}
+                                    placeholder={editTicketNumber ? "修改已存罰單請務必填寫原因" : "一般備註"}
+                                />
                             </div>
                         </div>
                     </div>
@@ -1181,20 +1199,22 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">罰款管理系統</h2>
-                <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-                    <button
-                        onClick={() => setActiveTab('stats')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                    >
-                        統計圖表
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('manage')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'manage' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                    >
-                        資料管理
-                    </button>
-                </div>
+                {role !== 'fine_inputter' && (
+                    <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                        <button
+                            onClick={() => setActiveTab('stats')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            統計圖表
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('manage')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'manage' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            資料管理
+                        </button>
+                    </div>
+                )}
             </div>
 
             {activeTab === 'stats' && renderStats()}

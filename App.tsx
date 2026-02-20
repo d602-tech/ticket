@@ -110,6 +110,12 @@ function App() {
             setCurrentUserRole(user.role);
             setCurrentUserName(user.name);
             setIsAuthenticated(true);
+
+            if (user.role === 'fine_inputter') {
+                setView('FINE_STATS');
+            } else {
+                setView('DASHBOARD');
+            }
         } else {
             console.error('Login failed args:', success, user);
             alert(`登入失敗 (Debug): success=${success}, user=${JSON.stringify(user)}`);
@@ -401,6 +407,7 @@ function App() {
         switch (role) {
             case 'admin': return { card: 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50', avatar: 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200', badge: 'bg-indigo-100 text-indigo-700 border-indigo-200', badgeLabel: '系統管理員', dot: 'bg-indigo-500' };
             case 'viewer': return { card: 'border-slate-200 bg-gradient-to-br from-slate-50 to-gray-50', avatar: 'bg-gradient-to-br from-slate-400 to-gray-500 shadow-slate-200', badge: 'bg-slate-100 text-slate-600 border-slate-200', badgeLabel: '觀看者', dot: 'bg-slate-400' };
+            case 'fine_inputter': return { card: 'border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50', avatar: 'bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-200', badge: 'bg-orange-100 text-orange-700 border-orange-200', badgeLabel: '罰單輸入者', dot: 'bg-orange-500' };
             default: return { card: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50', avatar: 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', badgeLabel: '一般使用者', dot: 'bg-emerald-500' };
         }
     };
@@ -449,6 +456,7 @@ function App() {
                                                         >
                                                             <option value="admin">系統管理員</option>
                                                             <option value="user">一般使用者</option>
+                                                            <option value="fine_inputter">罰單輸入者</option>
                                                             <option value="viewer">觀看者</option>
                                                         </select>
                                                     </div>
@@ -479,6 +487,7 @@ function App() {
                                 <select className="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50 focus:bg-white appearance-none" value={newUserForm.role} onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value })}>
                                     <option value="user">一般使用者 (User)</option>
                                     <option value="admin">系統管理員 (Admin)</option>
+                                    <option value="fine_inputter">罰單輸入者 (Fine Inputter)</option>
                                     <option value="viewer">觀看者 (Viewer)</option>
                                 </select>
                             </div>
@@ -741,10 +750,14 @@ function App() {
                     <button onClick={() => setIsSidebarOpen(false)} className="ml-auto md:hidden text-slate-400 hover:text-white"><X size={20} /></button>
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
-                    <button onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><LayoutDashboard size={20} />儀表板</button>
-                    {currentUserRole !== 'viewer' && (
+                    {currentUserRole !== 'fine_inputter' && (
+                        <button onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><LayoutDashboard size={20} />儀表板</button>
+                    )}
+                    {(currentUserRole === 'admin' || currentUserRole === 'user' || currentUserRole === 'fine_inputter') && (
+                        <button onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><DollarSign size={20} />罰款統計</button>
+                    )}
+                    {(currentUserRole === 'admin' || currentUserRole === 'user') && (
                         <>
-                            <button onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><DollarSign size={20} />罰款統計</button>
                             <button onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><FileWarning size={20} />違規紀錄</button>
                             <button onClick={() => { setView('PERSONNEL'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PERSONNEL' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><Users size={20} />人員管理</button>
                             <button onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><Briefcase size={20} />工程管理</button>
