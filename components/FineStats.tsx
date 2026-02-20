@@ -832,9 +832,22 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                             onClick={() => {
                                                 const proj = projects.find(p => p.name === currentTicket.projectName);
                                                 if (proj && proj.contractNumber) {
-                                                    setCurrentTicket({ ...currentTicket, ticketNumber: proj.contractNumber });
+                                                    const contractNum = proj.contractNumber;
+                                                    const prefix = `${contractNum}-工安-`;
+                                                    const existingSeqs = fines
+                                                        .filter(f => f.ticketNumber && f.ticketNumber.startsWith(prefix))
+                                                        .map(f => {
+                                                            const parts = f.ticketNumber?.split('-工安-');
+                                                            if (parts && parts[1]) {
+                                                                return parseInt(parts[1], 10);
+                                                            }
+                                                            return 0;
+                                                        });
+                                                    const maxSeq = existingSeqs.length > 0 ? Math.max(...existingSeqs) : 0;
+                                                    const nextSeq = String(maxSeq + 1).padStart(3, '0');
+                                                    setCurrentTicket({ ...currentTicket, ticketNumber: `${prefix}${nextSeq}` });
                                                 } else {
-                                                    alert('此工程無契約編號');
+                                                    alert('此工程尚未設定契約編號');
                                                 }
                                             }}
                                             className="whitespace-nowrap px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg border border-slate-200"
@@ -1034,39 +1047,46 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     </div>
 
                     {/* Added Items List */}
-                    <div className="p-4">
-                        <h4 className="font-bold text-slate-700 mb-2">已加入項目</h4>
-                        <table className="w-full text-sm text-left border rounded-lg overflow-hidden">
-                            <thead className="bg-slate-100 text-slate-600">
-                                <tr>
-                                    <th className="px-3 py-2">違規項目</th>
-                                    <th className="px-3 py-2 text-right">單價</th>
-                                    <th className="px-3 py-2 text-right">件數</th>
-                                    <th className="px-3 py-2 text-right">倍數</th>
-                                    <th className="px-3 py-2 text-right">小計</th>
-                                    <th className="px-3 py-2">關係</th>
-                                    <th className="px-3 py-2">原因</th>
-                                    <th className="px-3 py-2">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {ticketItems.map((item, idx) => (
-                                    <tr key={idx}>
-                                        <td className="px-3 py-2 truncate max-w-xs">{item.violationItem}</td>
-                                        <td className="px-3 py-2 text-right">{Number(item.unitPrice).toLocaleString()}</td>
-                                        <td className="px-3 py-2 text-right">{item.count}</td>
-                                        <td className="px-3 py-2 text-right">{item.multiplier}</td>
-                                        <td className="px-3 py-2 text-right font-bold text-slate-700">{Number(item.subtotal).toLocaleString()}</td>
-                                        <td className="px-3 py-2">{item.relationship}</td>
-                                        <td className="px-3 py-2 text-slate-500 text-xs">{item.priceAdjustmentReason}</td>
-                                        <td className="px-3 py-2">
-                                            <button onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700"><X size={14} /></button>
-                                        </td>
+                    <div className="p-5 bg-emerald-50 border-b-2 border-emerald-200 relative">
+                        <div className="absolute top-0 right-4 -mt-3 bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 shadow-sm flex items-center gap-1">
+                            <Plus size={12} /> 待儲存清單
+                        </div>
+                        <h4 className="font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                            已加入此罰單的附屬項目清單 <span className="bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full text-xs">{ticketItems.length} 筆</span>
+                        </h4>
+                        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-emerald-600 text-white font-medium">
+                                    <tr>
+                                        <th className="px-3 py-2">違規項目</th>
+                                        <th className="px-3 py-2 text-right">單價</th>
+                                        <th className="px-3 py-2 text-right">件數</th>
+                                        <th className="px-3 py-2 text-right">倍數</th>
+                                        <th className="px-3 py-2 text-right">小計</th>
+                                        <th className="px-3 py-2">關係</th>
+                                        <th className="px-3 py-2">原因</th>
+                                        <th className="px-3 py-2">操作</th>
                                     </tr>
-                                ))}
-                                {ticketItems.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-slate-400">尚無項目</td></tr>}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {ticketItems.map((item, idx) => (
+                                        <tr key={idx}>
+                                            <td className="px-3 py-2 truncate max-w-xs">{item.violationItem}</td>
+                                            <td className="px-3 py-2 text-right">{Number(item.unitPrice).toLocaleString()}</td>
+                                            <td className="px-3 py-2 text-right">{item.count}</td>
+                                            <td className="px-3 py-2 text-right">{item.multiplier}</td>
+                                            <td className="px-3 py-2 text-right font-bold text-slate-700">{Number(item.subtotal).toLocaleString()}</td>
+                                            <td className="px-3 py-2">{item.relationship}</td>
+                                            <td className="px-3 py-2 text-slate-500 text-xs">{item.priceAdjustmentReason}</td>
+                                            <td className="px-3 py-3 border-b border-emerald-50">
+                                                <button onClick={() => handleRemoveItem(idx)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><X size={16} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {ticketItems.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-emerald-600/50 flex flex-col items-center gap-2"><Plus size={24} />尚無任何項目，請從上方填寫並新增</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="p-4 border-t flex justify-between items-center bg-slate-50 rounded-b-xl">
