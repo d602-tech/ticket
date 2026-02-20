@@ -21,6 +21,7 @@ interface FineStatsProps {
     onSaveSections: (sections: Section[]) => void;
     onSaveViolation: (violation: Violation) => Promise<void>;
     role?: string;
+    onSaveProjects?: (projects: Project[]) => void;
 }
 
 // Helper to group fines by ticket number
@@ -34,11 +35,12 @@ interface TicketGroup {
     scanFileUrl?: string;
 }
 
-export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveViolation, role }: FineStatsProps) {
+export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveProjects, onSaveViolation, role }: FineStatsProps) {
     const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ show: boolean; stage: string; fileName?: string }>({ show: false, stage: '' });
+    const [statsTimeFilter, setStatsTimeFilter] = useState<'ALL' | 'LAST_MONTH' | 'THIS_MONTH' | 'THIS_YEAR'>('ALL');
 
     // Ticket State
     const [editTicketNumber, setEditTicketNumber] = useState<string | null>(null); // Track if editing existing ticket
@@ -279,6 +281,12 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
             return;
         }
 
+        const ticketRegex = /^.+-工安-\d+$/;
+        if (!ticketRegex.test(currentTicket.ticketNumber)) {
+            alert('罰單編號格式錯誤，必須為：「契約編號-工安-流水號」\n例如：6021270003-工安-012');
+            return;
+        }
+
         if (editTicketNumber && !currentTicket.note) {
             alert('修改已存之罰款單必須填寫「備註/修改原因」');
             return;
@@ -322,7 +330,20 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 updatedFines = [...fines, ...finalItems];
             }
 
-            const result = await syncData(undefined, undefined, undefined, updatedFines);
+            let projectsToSync: Project[] | undefined = undefined;
+            const contractNumberMatch = currentTicket.ticketNumber.match(/^(.+)-工安-\d+$/);
+            if (contractNumberMatch && currentTicket.projectName) {
+                const extractedContractNumber = contractNumberMatch[1];
+                const pIndex = projects.findIndex(p => p.name === currentTicket.projectName);
+                if (pIndex >= 0 && projects[pIndex].contractNumber !== extractedContractNumber) {
+                    const updatedProjects = [...projects];
+                    updatedProjects[pIndex] = { ...updatedProjects[pIndex], contractNumber: extractedContractNumber };
+                    projectsToSync = updatedProjects;
+                    if (onSaveProjects) onSaveProjects(updatedProjects);
+                }
+            }
+
+            const result = await syncData(projectsToSync, undefined, undefined, updatedFines);
             onSaveFines(result.fines);
             setIsEditing(false);
             resetForm();
@@ -686,8 +707,27 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
     // Stats Render Logic
     const renderStats = () => {
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        const thisYearStart = new Date(now.getFullYear(), 0, 1);
+
+        const filteredFines = fines.filter(f => {
+            if (statsTimeFilter === 'ALL') return true;
+            const dStr = f.date || f.issueDate;
+            if (!dStr) return false;
+            const d = new Date(dStr);
+            if (isNaN(d.getTime())) return false;
+
+            if (statsTimeFilter === 'THIS_MONTH') return d >= thisMonthStart;
+            if (statsTimeFilter === 'LAST_MONTH') return d >= lastMonthStart && d <= lastMonthEnd;
+            if (statsTimeFilter === 'THIS_YEAR') return d >= thisYearStart;
+            return true;
+        });
+
         // 1. By Project (Using Abbreviation)
-        const finesByProject = fines.reduce((acc, curr) => {
+        const finesByProject = filteredFines.reduce((acc, curr) => {
             // Find project to get abbr
             const proj = projects.find(p => p.name === curr.projectName);
             const name = proj ? proj.abbreviation : (curr.projectName || '未分類');
@@ -700,7 +740,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         const projectData = Object.entries(finesByProject).map(([name, value]) => ({ name, value }));
 
         // 2. By Host Team
-        const finesByTeam = fines.reduce((acc, curr) => {
+        const finesByTeam = filteredFines.reduce((acc, curr) => {
             const team = curr.hostTeam || '未分類';
             if (!acc[team]) acc[team] = 0;
             acc[team] += (Number(curr.subtotal) || 0);
@@ -710,7 +750,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         const teamData = Object.entries(finesByTeam).map(([name, value]) => ({ name, value }));
 
         // 3. By Month
-        const finesByMonth = fines.reduce((acc, curr) => {
+        const finesByMonth = filteredFines.reduce((acc, curr) => {
             const dateStr = curr.date || curr.issueDate;
             const d = dateStr ? new Date(dateStr) : new Date();
             if (isNaN(d.getTime())) return acc;
@@ -726,23 +766,34 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
         return (
             <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+                    <button onClick={() => setStatsTimeFilter('ALL')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'ALL' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>全部</button>
+                    <button onClick={() => setStatsTimeFilter('THIS_YEAR')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_YEAR' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>今年</button>
+                    <button onClick={() => setStatsTimeFilter('LAST_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'LAST_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>上個月</button>
+                    <button onClick={() => setStatsTimeFilter('THIS_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>本月</button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 className="text-slate-500 text-sm font-medium">總罰款金額</h3>
+                        <h3 className="text-slate-500 text-sm font-medium">區間內罰款金額</h3>
                         <p className="text-3xl font-bold text-red-600 mt-2">
-                            ${fines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0).toLocaleString()}
+                            ${filteredFines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0).toLocaleString()}
                         </p>
                     </div>
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 className="text-slate-500 text-sm font-medium">總開單件數</h3>
+                        <h3 className="text-slate-500 text-sm font-medium">區間內開單件數</h3>
                         <p className="text-3xl font-bold text-slate-800 mt-2">
-                            {fines.length} 件
+                            {filteredFines.length} 件
                         </p>
                     </div>
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 className="text-slate-500 text-sm font-medium">本月罰款</h3>
+                        <h3 className="text-slate-500 text-sm font-medium">本月金額佔比參考</h3>
                         <p className="text-3xl font-bold text-indigo-600 mt-2">
-                            ${monthData.find(d => d.name === `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`)?.value.toLocaleString() || 0}
+                            ${filteredFines.filter(f => {
+                                const dStr = f.date || f.issueDate;
+                                if (!dStr) return false;
+                                const d = new Date(dStr);
+                                return d >= thisMonthStart;
+                            }).reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0).toLocaleString()}
                         </p>
                     </div>
                 </div>
