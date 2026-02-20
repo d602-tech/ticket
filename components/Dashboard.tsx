@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
-    PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+    PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, Line, Area
 } from 'recharts';
 import {
-    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users, Calendar
+    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users, Calendar, BarChart3, TrendingUp
 } from 'lucide-react';
 import { Violation, Project, Fine, ViolationStatus } from '../types';
 import { VersionHistory } from './VersionHistory';
@@ -22,6 +22,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects, fines }) => {
     // State for dashboard controls
     const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // Viewer Mode
+    const [statusPieMode, setStatusPieMode] = useState<'AMOUNT' | 'COUNT'>('AMOUNT');
     const [dashboardMonth, setDashboardMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -89,35 +90,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
     // Chart Data Memoization
     const chartData = useMemo(() => {
-        // Group by Host Team
-        const teamDataMap = new Map<string, number>();
+        // 1. Group by Host Team (Amount & Count)
+        const teamDataMap = new Map<string, { amount: number; count: number }>();
         violations.forEach(v => {
             const project = projects.find(p => p.name === v.projectName);
             const team = project?.hostTeam || '未歸類';
-            teamDataMap.set(team, (teamDataMap.get(team) || 0) + 1);
+            const current = teamDataMap.get(team) || { amount: 0, count: 0 };
+            teamDataMap.set(team, {
+                amount: current.amount + (v.fineAmount || 0),
+                count: current.count + 1
+            });
         });
-        const teamChartData = Array.from(teamDataMap, ([name, value]) => ({ name, value }));
-        // Group by Status
-        const statusDataMap = new Map<string, number>();
+        const teamChartData = Array.from(teamDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
+
+        // 2. Group by Status (Amount & Count)
+        const statusDataMap = new Map<string, { amount: number; count: number }>();
         violations.forEach(v => {
             const label = v.status === 'PENDING' ? '待辦理' :
                 v.status === 'NOTIFIED' ? '已通知' :
-                    v.status === 'SUBMITTED' ? '已提送' : '已完工'; // Matches COMPLETED, or typically "已結案"/"已完成"
-            statusDataMap.set(label, (statusDataMap.get(label) || 0) + 1);
+                    v.status === 'SUBMITTED' ? '已提送' : '已結案';
+            const current = statusDataMap.get(label) || { amount: 0, count: 0 };
+            statusDataMap.set(label, {
+                amount: current.amount + (v.fineAmount || 0),
+                count: current.count + 1
+            });
         });
-        const statusChartData = Array.from(statusDataMap, ([name, value]) => ({ name, value }));
+        const statusChartData = Array.from(statusDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
 
-        // Contractor Stats (for selected month)
-        const contractorData = Object.entries(stats.monthlyFinesList.reduce((acc, curr) => {
-            const name = curr.contractor || '未分類';
-            acc[name] = (acc[name] || 0) + (Number(curr.subtotal) || 0);
-            return acc;
-        }, {} as Record<string, number>))
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
+        // 3. 6-Month Trend Data
+        const trendDataMap = new Map<string, { amount: number; count: number }>();
+        const now = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            trendDataMap.set(monthStr, { amount: 0, count: 0 });
+        }
 
-        return { teamChartData, statusChartData, contractorData };
-    }, [violations, projects, stats.monthlyFinesList]);
+        violations.forEach(v => {
+            if (!v.violationDate) return;
+            const monthStr = v.violationDate.substring(0, 7);
+            if (trendDataMap.has(monthStr)) {
+                const current = trendDataMap.get(monthStr)!;
+                current.amount += (v.fineAmount || 0);
+                current.count += 1;
+            }
+        });
+        const trendChartData = Array.from(trendDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
+
+        return { teamChartData, statusChartData, trendChartData };
+    }, [violations, projects]);
 
     const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#38bdf8', '#c084fc', '#f87171']; // Refined modern palette
 
@@ -370,73 +391,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                {/* 案件分佈 Donut Chart (Material 3) */}
+                {/* 1. 各工作隊違規與罰款分佈 (Composed Chart) */}
                 <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02]">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">各工作隊案件分佈</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">One Team 單一部門違規佔比總覽</p>
+                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">各工作隊違規與罰款分佈</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">雙軸長條+折線混合圖</p>
                         </div>
                         <div className="p-3 bg-indigo-50 dark:bg-[#2B2F36] text-indigo-600 dark:text-indigo-400 rounded-2xl shadow-sm">
-                            <LayoutDashboard size={24} strokeWidth={2.5} />
+                            <BarChart3 size={24} strokeWidth={2.5} />
                         </div>
                     </div>
                     <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={chartData.teamChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={90}
-                                    outerRadius={120}
-                                    cornerRadius={8}
-                                    fill="#8884d8"
-                                    paddingAngle={4}
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                    stroke="none"
-                                >
-                                    {chartData.teamChartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(43, 47, 54, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                                        backdropFilter: 'blur(12px)',
-                                        border: 'none',
-                                        borderRadius: '16px',
-                                        color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b',
-                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                                    }}
-                                    itemStyle={{
-                                        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
-                                        fontWeight: 600
-                                    }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* 狀態統計 (Bar - Material 3) */}
-                <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02]">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件狀態統計</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">目前所有違規案件處理進度</p>
-                        </div>
-                        <div className="p-3 bg-blue-50 dark:bg-[#2B2F36] text-blue-600 dark:text-blue-400 rounded-2xl shadow-sm">
-                            <CheckCircle2 size={24} strokeWidth={2.5} />
-                        </div>
-                    </div>
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData.statusChartData}>
+                            <ComposedChart data={chartData.teamChartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={document.documentElement.classList.contains('dark') ? 0.05 : 1} />
                                 <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
-                                <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b' }} />
+                                <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                 <Tooltip
                                     cursor={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255,255,255,0.02)' : 'rgba(99, 102, 241, 0.04)' }}
                                     contentStyle={{
@@ -447,53 +419,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                         color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b',
                                         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                                     }}
-                                    itemStyle={{
-                                        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
-                                        fontWeight: 600
+                                />
+                                <Legend />
+                                <Bar yAxisId="left" dataKey="amount" name="罰款總額" fill="#6366f1" radius={[8, 8, 0, 0]} maxBarSize={50} />
+                                <Line yAxisId="right" type="monotone" dataKey="count" name="違規件數" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* 2. 案件狀態統計 (Pie Chart with Segmented Toggle) */}
+                <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02]">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件狀態統計</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">目前所有違規案件處理進度</p>
+                        </div>
+                        {/* Segmented Toggle */}
+                        <div className="flex bg-slate-100 dark:bg-[#2B2F36] p-1 rounded-xl shadow-inner">
+                            <button
+                                onClick={() => setStatusPieMode('AMOUNT')}
+                                className={`px-4 py-2 text-[13px] font-bold rounded-lg transition-all ${statusPieMode === 'AMOUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                            >
+                                💰 罰款金額
+                            </button>
+                            <button
+                                onClick={() => setStatusPieMode('COUNT')}
+                                className={`px-4 py-2 text-[13px] font-bold rounded-lg transition-all ${statusPieMode === 'COUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                            >
+                                📄 違規件數
+                            </button>
+                        </div>
+                    </div>
+                    <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={chartData.statusChartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={90}
+                                    outerRadius={120}
+                                    cornerRadius={8}
+                                    fill="#8884d8"
+                                    paddingAngle={4}
+                                    dataKey={statusPieMode === 'AMOUNT' ? 'amount' : 'count'}
+                                    label={({ name, percent, value }) => statusPieMode === 'AMOUNT' ? `${name} $${value.toLocaleString()}` : `${name} ${value}件`}
+                                    stroke="none"
+                                >
+                                    {chartData.statusChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    formatter={(value: number) => statusPieMode === 'AMOUNT' ? [`$${value.toLocaleString()}`, '金額'] : [`${value} 件`, '件數']}
+                                    contentStyle={{
+                                        backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(43, 47, 54, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                                        backdropFilter: 'blur(12px)',
+                                        border: 'none',
+                                        borderRadius: '16px',
+                                        color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b',
+                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                                     }}
                                 />
-                                <Bar dataKey="value" fill="#6366f1" radius={[12, 12, 0, 0]} barSize={40}>
-                                    {chartData.statusChartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.name === '已結案' || entry.name === '已完成' ? '#10b981' : '#6366f1'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
+                            </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             </div>
 
-            {/* Contractor Chart (Material 3) */}
+            {/* 3. 年度違規與罰款趨勢 (Trend Composed Chart) */}
             <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02] mb-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">承攬商罰款佔比 ({stats.month}月)</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">本月各廠商違規金額統計</p>
+                        <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">年度違規與罰款趨勢</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">最近半年歷史趨勢圖</p>
                     </div>
                     <div className="p-3 bg-purple-50 dark:bg-[#2B2F36] text-purple-600 dark:text-purple-400 rounded-2xl shadow-sm">
-                        <Users size={24} strokeWidth={2.5} />
+                        <TrendingUp size={24} strokeWidth={2.5} />
                     </div>
                 </div>
                 <div className="h-80 relative">
                     <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={chartData.contractorData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={90}
-                                outerRadius={120}
-                                cornerRadius={8}
-                                fill="#8884d8"
-                                paddingAngle={3}
-                                dataKey="value"
-                                stroke="none"
-                                label={({ name, value, percent }) => `${name} $${value.toLocaleString()} (${(percent * 100).toFixed(0)}%)`}
-                            >
-                                {chartData.contractorData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
+                        <ComposedChart data={chartData.trendChartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={document.documentElement.classList.contains('dark') ? 0.05 : 1} />
+                            <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
+                            <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
                             <Tooltip
                                 contentStyle={{
                                     backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(43, 47, 54, 0.95)' : 'rgba(255, 255, 255, 0.95)',
@@ -503,13 +515,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                     color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b',
                                     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                                 }}
-                                itemStyle={{
-                                    color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
-                                    fontWeight: 600
-                                }}
                             />
-                            <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ right: 0 }} />
-                        </PieChart>
+                            <Legend />
+                            <Area yAxisId="left" type="monotone" dataKey="amount" name="罰款總額" fill="#8b5cf6" stroke="none" fillOpacity={0.15} />
+                            <Line yAxisId="right" type="monotone" dataKey="count" name="違規件數" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        </ComposedChart>
                     </ResponsiveContainer>
                 </div>
             </div>
