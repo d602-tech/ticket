@@ -90,34 +90,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
     // Chart Data Memoization
     const chartData = useMemo(() => {
-        // 1. Group by Host Team (Amount & Count)
+        // 1. Group by Host Team (Amount & Count from Fines)
         const teamDataMap = new Map<string, { amount: number; count: number }>();
-        violations.forEach(v => {
-            const project = projects.find(p => p.name === v.projectName);
-            const team = project?.hostTeam || '未歸類';
+        fines.forEach(f => {
+            const team = f.hostTeam || '未歸類';
             const current = teamDataMap.get(team) || { amount: 0, count: 0 };
             teamDataMap.set(team, {
-                amount: current.amount + (v.fineAmount || 0),
+                amount: current.amount + (Number(f.subtotal) || 0),
                 count: current.count + 1
             });
         });
         const teamChartData = Array.from(teamDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
 
-        // 2. Group by Status (Amount & Count)
+        // 2. Group by "案件狀態" (Actually "開單類型" or "違規項目" for Fines since Fines don't have a processing Status)
         const statusDataMap = new Map<string, { amount: number; count: number }>();
-        violations.forEach(v => {
-            const label = v.status === 'PENDING' ? '待辦理' :
-                v.status === 'NOTIFIED' ? '已通知' :
-                    v.status === 'SUBMITTED' ? '已提送' : '已結案';
-            const current = statusDataMap.get(label) || { amount: 0, count: 0 };
-            statusDataMap.set(label, {
-                amount: current.amount + (v.fineAmount || 0),
+        fines.forEach(f => {
+            // Using ticketType (開單類型) or defaulting to 違規項目 or '未分類'
+            const label = f.ticketType ? String(f.ticketType).trim() : (f.violationItem ? String(f.violationItem).trim() : '未分類');
+            const displayLabel = label === '' ? '未分類' : label;
+
+            const current = statusDataMap.get(displayLabel) || { amount: 0, count: 0 };
+            statusDataMap.set(displayLabel, {
+                amount: current.amount + (Number(f.subtotal) || 0),
                 count: current.count + 1
             });
         });
         const statusChartData = Array.from(statusDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
 
-        // 3. 6-Month Trend Data
+        // 3. 6-Month Trend Data (From Fines)
         const trendDataMap = new Map<string, { amount: number; count: number }>();
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -126,19 +126,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             trendDataMap.set(monthStr, { amount: 0, count: 0 });
         }
 
-        violations.forEach(v => {
-            if (!v.violationDate) return;
-            const monthStr = v.violationDate.substring(0, 7);
+        fines.forEach(f => {
+            if (!f.date) return;
+            // f.date might be YYYY/MM/DD or YYYY-MM-DD
+            const formattedDate = f.date.replace(/\//g, '-');
+            const monthStr = formattedDate.substring(0, 7);
             if (trendDataMap.has(monthStr)) {
                 const current = trendDataMap.get(monthStr)!;
-                current.amount += (v.fineAmount || 0);
+                current.amount += (Number(f.subtotal) || 0);
                 current.count += 1;
             }
         });
         const trendChartData = Array.from(trendDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
 
         return { teamChartData, statusChartData, trendChartData };
-    }, [violations, projects]);
+    }, [fines]);
 
     const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#38bdf8', '#c084fc', '#f87171']; // Refined modern palette
 
