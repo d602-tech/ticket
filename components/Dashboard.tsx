@@ -97,14 +97,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             teamDataMap.set(team, (teamDataMap.get(team) || 0) + 1);
         });
         const teamChartData = Array.from(teamDataMap, ([name, value]) => ({ name, value }));
-
         // Group by Status
         const statusDataMap = new Map<string, number>();
         violations.forEach(v => {
-            // Simplified status label logic
             const label = v.status === 'PENDING' ? '待辦理' :
                 v.status === 'NOTIFIED' ? '已通知' :
-                    v.status === 'SUBMITTED' ? '已提送' : '已結案';
+                    v.status === 'SUBMITTED' ? '已提送' : '已完工'; // Matches COMPLETED, or typically "已結案"/"已完成"
             statusDataMap.set(label, (statusDataMap.get(label) || 0) + 1);
         });
         const statusChartData = Array.from(statusDataMap, ([name, value]) => ({ name, value }));
@@ -176,7 +174,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     </div>
                 </div>
 
-                {/* Table Logic ... (Simplified for brevity, can duplicate if needed or extract further) */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-6 border-b border-slate-50">
                         <h3 className="font-bold text-slate-700">罰單明細</h3>
