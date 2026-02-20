@@ -806,7 +806,7 @@ function App() {
                     onUploadScan={handleUploadScanFile}
                     onEmail={(v) => openEmailModal(v)}
                 />}
-                {view === 'FINE_STATS' && <FineStats projects={projects} fines={fines} fineList={fineList} sections={sections} onSaveFines={setFines} onSaveSections={setSections} onSaveProjects={setProjects} onSaveViolation={handleSaveViolation} role={currentUserRole} />}
+                {view === 'FINE_STATS' && <FineStats projects={projects} fines={fines} fineList={fineList} sections={sections} onSaveFines={setFines} onSaveSections={setSections} onSaveProjects={setProjects} onSaveViolation={handleSaveViolation} violations={violations} role={currentUserRole} />}
                 {view === 'PROJECTS' && renderProjects()}
                 {view === 'USERS' && renderUserManagement()}
                 {view === 'PERSONNEL' && <PersonnelManagement sections={sections} onSaveSections={setSections} syncService={syncData} />}

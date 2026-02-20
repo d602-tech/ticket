@@ -20,8 +20,9 @@ interface FineStatsProps {
     onSaveFines: (fines: Fine[]) => void;
     onSaveSections: (sections: Section[]) => void;
     onSaveViolation: (violation: Violation) => Promise<void>;
-    role?: string;
     onSaveProjects?: (projects: Project[]) => void;
+    violations: Violation[];
+    role?: string;
 }
 
 // Helper to group fines by ticket number
@@ -35,7 +36,7 @@ interface TicketGroup {
     scanFileUrl?: string;
 }
 
-export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveProjects, onSaveViolation, role }: FineStatsProps) {
+export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveProjects, onSaveViolation, violations, role }: FineStatsProps) {
     const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -875,7 +876,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                     <input type="text" className="w-full p-2 border rounded-lg"
                                         value={currentTicket.ticketNumber || ''}
                                         onChange={e => setCurrentTicket({ ...currentTicket, ticketNumber: e.target.value })}
-                                        placeholder="輸入罰單編號"
+                                        placeholder="格式：契約編號-工安-流水號 (例如: 602-工安-001)"
                                     />
                                     {currentTicket.projectName && (
                                         <button
@@ -1213,6 +1214,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 <th className="px-4 py-3 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('totalAmount')}>
                                     總金額 {sortConfig.key === 'totalAmount' && (sortConfig.direction === 'ascending' ? '↑' : '↓')}
                                 </th>
+                                <th className="px-4 py-3 text-center">違規講習</th>
                                 <th className="px-4 py-3 text-center">掃描檔</th>
                                 <th className="px-4 py-3 text-right">操作</th>
                             </tr>
@@ -1227,6 +1229,14 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                         <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{t.items.length}</span>
                                     </td>
                                     <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        {(() => {
+                                            const v = violations.find(v => v.description.includes(t.ticketNumber));
+                                            if (!v) return <span className="text-slate-400 text-xs">-</span>;
+                                            if (v.status === ViolationStatus.COMPLETED) return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">已結案</span>;
+                                            return <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">辦理中</span>;
+                                        })()}
+                                    </td>
                                     <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                                         {t.scanFileUrl ? (
                                             <div className="flex items-center justify-center gap-1">
@@ -1297,7 +1307,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">罰款管理系統</h2>
-                {role !== 'fine_inputter' && (
+                {(role !== 'fine_inputter' || true) && (
                     <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
                         <button
                             onClick={() => setActiveTab('stats')}
