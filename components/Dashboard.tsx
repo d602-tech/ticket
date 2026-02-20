@@ -165,7 +165,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                         </div>
                         <div className="text-4xl font-bold">${viewerMonthlyTotal.toLocaleString()}</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+                    <div className="bg-white dark:bg-sidebar border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm">
                         <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
                             <FileText size={24} />
                             <span className="text-sm font-medium">本月罰單件數</span>
@@ -174,13 +174,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="p-6 border-b border-slate-50 dark:border-slate-700/50">
+                <div className="bg-white dark:bg-sidebar rounded-2xl shadow-sm border border-slate-200 dark:border-white/5 overflow-hidden">
+                    <div className="p-6 border-b border-slate-50 dark:border-white/5">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200">罰單明細</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 font-medium">
+                            <thead className="bg-slate-50 dark:bg-[#1A2234] text-slate-500 dark:text-slate-400 font-medium">
                                 <tr>
                                     <th className="px-6 py-3">日期</th>
                                     <th className="px-6 py-3">承攬商</th>
@@ -284,7 +284,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 {/* Row 2: Secondary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {/* Pending */}
-                    <div className='bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-all group relative overflow-hidden'>
+                    <div className='bg-white dark:bg-sidebar rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 hover:shadow-lg transition-all group relative overflow-hidden'>
                         <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
                             <AlertTriangle size={100} className="text-amber-500" />
                         </div>
@@ -307,7 +307,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     </div>
 
                     {/* Monthly Amount */}
-                    <div className='bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-all group relative overflow-hidden'>
+                    <div className='bg-white dark:bg-sidebar rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 hover:shadow-lg transition-all group relative overflow-hidden'>
                         <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
                             <Calendar size={100} className="text-blue-500" />
                         </div>
@@ -383,7 +383,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 {/* 案件分佈 (Pie) */}
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
+                <div className="bg-white dark:bg-sidebar p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5">
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">各工作隊案件分佈</h3>
@@ -418,7 +418,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 </div>
 
                 {/* 狀態統計 (Bar) */}
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
+                <div className="bg-white dark:bg-sidebar p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5">
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">案件狀態統計</h3>
@@ -450,10 +450,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             </div>
 
             {/* Contractor Chart */}
-            <div className="bg-white p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 mb-8">
+            <div className="bg-white dark:bg-sidebar p-8 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 mb-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-800">承攬商罰款佔比 ({stats.month}月)</h3>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">承攬商罰款佔比 ({stats.month}月)</h3>
                         <p className="text-sm text-slate-400">本月各廠商違規金額統計</p>
                     </div>
                     <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl">
@@ -488,28 +488,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             {/* Recent Violations & Version History */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                    <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden h-full">
-                        <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                    <div className="bg-white dark:bg-sidebar rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 overflow-hidden h-full">
+                        <div className="p-8 border-b border-slate-50 dark:border-white/5 flex justify-between items-center">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">最近違規紀錄</h3>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">最近違規紀錄</h3>
                                 <p className="text-sm text-slate-400">系統最新登錄的 5 筆資料</p>
                             </div>
-                            <div className="p-2 bg-slate-50 text-slate-500 rounded-xl">
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 text-slate-500 rounded-xl">
                                 <Clock size={20} />
                             </div>
                         </div>
-                        <div className="divide-y divide-slate-50">
+                        <div className="divide-y divide-slate-50 dark:divide-white/5">
                             {violations.slice(0, 5).map(v => (
-                                <div key={v.id} className="p-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group cursor-pointer">
+                                <div key={v.id} className="p-5 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-all flex items-center justify-between group cursor-pointer">
                                     <div className="flex items-center gap-5">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold text-white shadow-md ${v.status === ViolationStatus.COMPLETED ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-indigo-400 to-indigo-600'}`}>
                                             {v.contractorName ? v.contractorName.charAt(0) : '?'}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-slate-800 text-base mb-1 group-hover:text-indigo-600 transition-colors">{v.contractorName}</div>
+                                            <div className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{v.contractorName}</div>
                                             <div className="text-sm text-slate-400 flex items-center gap-2">
-                                                <span className="bg-slate-100 px-2.5 py-0.5 rounded-md text-xs font-medium text-slate-600">{v.projectName}</span>
-                                                <span className="text-slate-300">|</span>
+                                                <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-400">{v.projectName}</span>
+                                                <span className="text-slate-300 dark:text-slate-600">|</span>
                                                 <span>{v.violationDate}</span>
                                             </div>
                                         </div>

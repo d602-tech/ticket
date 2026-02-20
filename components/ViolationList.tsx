@@ -49,16 +49,16 @@ export const ViolationList: React.FC<ViolationListProps> = ({
     }, [violations, searchTerm, statusFilter, hostTeamFilter, projects]);
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+        <div className="bg-white dark:bg-sidebar rounded-2xl shadow-sm border border-slate-200/60 dark:border-white/5 overflow-hidden">
             {/* Toolbar */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="p-4 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto flex-1">
                     <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                         <input
                             type="text"
                             placeholder="搜尋承攬商或工程..."
-                            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700/50 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-[#F3F4F6] dark:bg-[#1A2234] dark:text-slate-100"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -67,7 +67,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                         <div className="relative">
                             <Filter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                             <select
-                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700/50 rounded-lg text-sm bg-[#F3F4F6] dark:bg-[#1A2234] dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value as any)}
                             >
@@ -81,7 +81,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                         <div className="relative">
                             <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                             <select
-                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-slate-500 outline-none appearance-none cursor-pointer"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700/50 rounded-lg text-sm bg-[#F3F4F6] dark:bg-[#1A2234] dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
                                 value={hostTeamFilter}
                                 onChange={(e) => setHostTeamFilter(e.target.value)}
                             >
@@ -129,7 +129,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         </span>
                                     </div>
 
-                                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2 bg-slate-50/80 dark:bg-slate-900/50 p-2.5 rounded-lg">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2 bg-slate-50/80 dark:bg-[#1A2234] p-2.5 rounded-lg">
                                         {violation.description}
                                     </p>
 
@@ -179,7 +179,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
             <div className="hidden xl:block overflow-x-auto">
                 <table className="w-full min-w-[1000px] text-left border-collapse">
                     <thead>
-                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-[#1A2234] dark:to-[#1A2234] border-b border-slate-200 dark:border-white/5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
                             <th className="px-6 py-4">承攬商 / 工程</th>
                             <th className="px-6 py-4">違規事項</th>
                             <th className="px-6 py-4">講習期限</th>
@@ -188,7 +188,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                             <th className="px-6 py-4 text-right">操作</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {filteredViolations.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
@@ -201,13 +201,13 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                 const isOverdue = daysRemaining < 0 && violation.status === ViolationStatus.PENDING;
 
                                 return (
-                                    <tr key={violation.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={violation.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-900">{violation.contractorName}</div>
-                                            <div className="text-xs text-slate-500 mt-0.5">{violation.projectName}</div>
+                                            <div className="font-medium text-slate-900 dark:text-slate-100">{violation.contractorName}</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{violation.projectName}</div>
                                         </td>
                                         <td className="px-6 py-4 max-w-xs">
-                                            <div className="text-sm text-slate-700 truncate" title={violation.description}>
+                                            <div className="text-sm text-slate-700 dark:text-slate-300 truncate" title={violation.description}>
                                                 {violation.description}
                                             </div>
                                             {violation.fileUrl ? (
@@ -228,30 +228,30 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                             ) : null}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-sm text-slate-600">
+                                            <div className="text-sm text-slate-600 dark:text-slate-300">
                                                 {formatDate(violation.lectureDeadline)}
                                                 {violation.status !== ViolationStatus.COMPLETED && (
-                                                    <div className={`text-xs font-medium mt-1 ${isOverdue ? 'text-red-500' : daysRemaining <= 5 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                                    <div className={`text-xs font-medium mt-1 ${isOverdue ? 'text-red-500' : daysRemaining <= 5 ? 'text-orange-500' : 'text-slate-400 dark:text-slate-500'}`}>
                                                         {isOverdue ? `已逾期 ${Math.abs(daysRemaining)} 天` : `剩餘 ${daysRemaining} 天`}
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-sm text-slate-600">
+                                            <div className="text-sm text-slate-600 dark:text-slate-300">
                                                 {violation.completionDate ? (
-                                                    <span className="text-green-600 font-medium">{formatDate(violation.completionDate)}</span>
+                                                    <span className="text-green-600 dark:text-green-400 font-medium">{formatDate(violation.completionDate)}</span>
                                                 ) : (
-                                                    <span className="text-slate-400">-</span>
+                                                    <span className="text-slate-400 dark:text-slate-500">-</span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span
-                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700' :
-                                                    violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700' :
-                                                        violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700' :
-                                                            'bg-yellow-100 text-yellow-700'
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' :
+                                                    violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                                                        violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' :
+                                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
                                                     }`}
                                             >
                                                 {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}

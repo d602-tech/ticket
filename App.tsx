@@ -731,33 +731,33 @@ function App() {
     if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
 
     return (
-        <div className="min-h-screen flex bg-slate-100 text-slate-800 font-sans relative dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
+        <div className="min-h-screen flex bg-[#F3F4F6] text-slate-800 font-sans relative dark:bg-[#1A2234] dark:text-slate-100 transition-colors duration-300">
             {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden glass" onClick={() => setIsSidebarOpen(false)} />}
 
-            <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-2xl transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`w-64 bg-sidebar text-slate-300 flex flex-col fixed inset-y-0 left-0 z-30 h-full shadow-xl shadow-slate-900/10 transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6 border-b border-white/5 flex items-center gap-3">
                     <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">SG</div>
                     <span className="text-white font-bold text-lg">系統管理</span>
                     <button onClick={() => setIsSidebarOpen(false)} className="ml-auto md:hidden text-slate-400 hover:text-white"><X size={20} /></button>
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
-                    <button onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><LayoutDashboard size={20} />儀表板</button>
+                    <button onClick={() => { setView('DASHBOARD'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'DASHBOARD' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><LayoutDashboard size={20} />儀表板</button>
                     {currentUserRole !== 'viewer' && (
                         <>
-                            <button onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><DollarSign size={20} />罰款統計</button>
-                            <button onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><FileWarning size={20} />違規紀錄</button>
-                            <button onClick={() => { setView('PERSONNEL'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PERSONNEL' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><Users size={20} />人員管理</button>
-                            <button onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><Briefcase size={20} />工程管理</button>
+                            <button onClick={() => { setView('FINE_STATS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'FINE_STATS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><DollarSign size={20} />罰款統計</button>
+                            <button onClick={() => { setView('VIOLATIONS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'VIOLATIONS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><FileWarning size={20} />違規紀錄</button>
+                            <button onClick={() => { setView('PERSONNEL'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PERSONNEL' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><Users size={20} />人員管理</button>
+                            <button onClick={() => { setView('PROJECTS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'PROJECTS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><Briefcase size={20} />工程管理</button>
                         </>
                     )}
-                    {currentUserRole === 'admin' && <button onClick={() => { setView('USERS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'USERS' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5'}`}><Users size={20} />帳號管理</button>}
+                    {currentUserRole === 'admin' && <button onClick={() => { setView('USERS'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all ${view === 'USERS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-sidebarHover text-slate-400 hover:text-slate-200'}`}><Users size={20} />帳號管理</button>}
                 </nav>
                 <div className="p-4 border-t border-white/5">
-                    <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white w-full"><LogOut size={16} />登出系統</button>
+                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-3 text-sm text-slate-400 hover:text-white hover:bg-sidebarHover rounded-xl w-full transition-all"><LogOut size={16} />登出系統</button>
                 </div>
             </aside>
 
-            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full bg-slate-50 dark:bg-slate-900">
+            <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto relative min-h-screen transition-all w-full bg-[#F3F4F6] dark:bg-[#1A2234]">
                 <header className="flex justify-between items-center mb-6 md:mb-8">
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-600 dark:text-slate-300 md:hidden"><Menu size={24} /></button>
