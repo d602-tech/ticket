@@ -119,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         return { teamChartData, statusChartData, contractorData };
     }, [violations, projects, stats.monthlyFinesList]);
 
-    const COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981'];
+    const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#38bdf8', '#c084fc', '#f87171']; // Refined modern palette
 
     // Viewer Mode Implementation
     if (role === 'viewer') {
@@ -230,153 +230,136 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 />
             </div>
 
-            {/* Hero Stats Section */}
-            <div className="space-y-6">
-                {/* Row 1: Major Totals */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Total Real Fines */}
-                    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 hover:shadow-2xl transition-all duration-300 group">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
-                            <DollarSign size={140} />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-2 text-indigo-100 mb-2">
-                                <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
-                                    <DollarSign size={20} />
-                                </div>
-                                <span className="text-sm font-medium tracking-wide opacity-90">罰款金額總額</span>
+            {/* KPI Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                {/* Metric 1: 總罰款金額 (Total Fine Amount) */}
+                <div className="relative bg-white dark:bg-sidebar rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-white/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-50 dark:bg-blue-900/10 rounded-full blur-2xl group-hover:bg-blue-100 dark:group-hover:bg-blue-900/20 transition-all"></div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl group-hover:scale-110 transition-transform">
+                                <DollarSign size={24} strokeWidth={2.5} />
                             </div>
-                            <div className="text-5xl font-extrabold tracking-tight mb-4">
+                            <span className="text-xs font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg">累積總額</span>
+                        </div>
+                        <div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-medium text-xs tracking-wider uppercase mb-1">罰款總額</h3>
+                            <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
                                 ${stats.totalRealFineAmount.toLocaleString()}
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-indigo-100/80">
-                                <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
-                                    <FileText size={14} /> 總筆數: {stats.totalFineCount}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Total Violation Lectures */}
-                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-8 text-white shadow-xl shadow-emerald-200 hover:shadow-2xl transition-all duration-300 group">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
-                            <FileWarning size={140} />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-2 text-emerald-100 mb-2">
-                                <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
-                                    <FileWarning size={20} />
-                                </div>
-                                <span className="text-sm font-medium tracking-wide opacity-90">違規講習總額</span>
-                            </div>
-                            <div className="text-5xl font-extrabold tracking-tight mb-4">
-                                ${stats.totalViolationAmount.toLocaleString()}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-emerald-100/80">
-                                <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
-                                    <CheckCircle2 size={14} /> 已結案: {stats.completedCount}
-                                </span>
-                            </div>
+                            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-medium">
+                                <FileText size={12} /> 共計 {stats.totalFineCount} 筆紀錄
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Row 2: Secondary Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    {/* Pending */}
-                    <div className='bg-white dark:bg-sidebar rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 hover:shadow-lg transition-all group relative overflow-hidden'>
-                        <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
-                            <AlertTriangle size={100} className="text-amber-500" />
+                {/* Metric 2: 本月罰款 (Monthly Fine Amount) */}
+                <div className="relative bg-white dark:bg-sidebar rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-white/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-2xl group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/20 transition-all"></div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl group-hover:scale-110 transition-transform">
+                                <Calendar size={24} strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xs font-bold px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">{stats.month} 月</span>
                         </div>
-                        <div className="flex flex-col h-full justify-between relative z-10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
-                                    <AlertTriangle size={24} />
-                                </div>
-                                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">未結案違規</span>
+                        <div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-medium text-xs tracking-wider uppercase mb-1">本月新增罰款</h3>
+                            <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                                ${stats.monthlyFineAmount.toLocaleString()}
                             </div>
-                            <div>
-                                <div className="text-3xl font-extrabold text-slate-800 dark:text-white mb-1">{stats.pendingCount}</div>
-                                {stats.overdueCount > 0 && (
-                                    <p className="text-xs font-bold text-red-500 flex items-center gap-1">
-                                        <Clock size={12} /> {stats.overdueCount} 件已逾期
-                                    </p>
-                                )}
-                            </div>
+                            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-medium">
+                                <FileText size={12} /> 本月共 {stats.monthlyFineCount} 筆
+                            </p>
                         </div>
                     </div>
+                </div>
 
-                    {/* Monthly Amount */}
-                    <div className='bg-white dark:bg-sidebar rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 hover:shadow-lg transition-all group relative overflow-hidden'>
-                        <div className="absolute -right-6 -top-6 opacity-[0.05] dark:opacity-[0.1] group-hover:opacity-[0.1] dark:group-hover:opacity-[0.15] transition-opacity rotate-12">
-                            <Calendar size={100} className="text-blue-500" />
+                {/* Metric 3: 違規講習金額 (Total Violation Lectures) */}
+                <div className="relative bg-white dark:bg-sidebar rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-white/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 w-32 h-32 bg-emerald-50 dark:bg-emerald-900/10 rounded-full blur-2xl group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/20 transition-all"></div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl group-hover:scale-110 transition-transform">
+                                <FileWarning size={24} strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xs font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg">已辦理 {stats.completedCount} 件</span>
                         </div>
-                        <div className="flex flex-col h-full justify-between relative z-10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                                    <DollarSign size={24} />
-                                </div>
-                                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">{stats.month}月罰款</span>
+                        <div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-medium text-xs tracking-wider uppercase mb-1">違規講習總扣款</h3>
+                            <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                                ${stats.totalViolationAmount.toLocaleString()}
                             </div>
-                            <div>
-                                <div className="text-3xl font-extrabold text-slate-800 dark:text-white mb-1">${stats.monthlyFineAmount.toLocaleString()}</div>
-                                <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                                    共 {stats.monthlyFineCount} 筆
-                                </p>
-                            </div>
+                            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-medium">
+                                <AlertTriangle size={12} /> 包含所有未結與已結案
+                            </p>
                         </div>
                     </div>
+                </div>
 
-                    {/* Monthly Count / Or Viewer Mode Stats */}
-                    {/* Reusing StatCards for variety or similar cards? Let's use similar card style for consistency */}
-                    <StatCard
-                        title={`${stats.month}月罰款筆數`}
-                        value={stats.monthlyFineCount}
-                        icon={FileText}
-                        colorClass="bg-cyan-500"
-                    />
-
-                    <StatCard
-                        title="已結案/已辦理"
-                        value={stats.completedCount}
-                        icon={CheckCircle2}
-                        colorClass="bg-emerald-500"
-                    />
+                {/* Metric 4: 待結案違規 (Pending Items) */}
+                <div className="relative bg-white dark:bg-sidebar rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-white/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group border-b-4 border-rose-500">
+                    <div className="absolute -right-6 -top-6 w-32 h-32 bg-rose-50 dark:bg-rose-900/10 rounded-full blur-2xl group-hover:bg-rose-100 dark:group-hover:bg-rose-900/20 transition-all"></div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="p-3 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl group-hover:scale-110 transition-transform">
+                                <AlertTriangle size={24} strokeWidth={2.5} />
+                            </div>
+                            {stats.overdueCount > 0 && (
+                                <span className="text-[10px] font-black px-2 py-1 bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 rounded-full animate-pulse uppercase">
+                                    {stats.overdueCount} 件已逾期
+                                </span>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-medium text-xs tracking-wider uppercase mb-1">未結案違規紀錄</h3>
+                            <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                                {stats.pendingCount}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-medium">
+                                <Clock size={12} /> 需盡速安排講習與提送
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Urgent Alerts */}
+            {/* Urgent Alerts Timeline Banner */}
             {stats.urgentViolations.length > 0 && (
-                <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-900/30 dark:to-orange-900/30 border border-amber-100 dark:border-amber-900/50 rounded-3xl p-6 shadow-sm backdrop-blur-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/20 text-white animate-pulse">
-                            <AlertTriangle size={20} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-extrabold text-amber-950 dark:text-amber-500 tracking-tight">
-                                到期前5日提醒
-                            </h2>
-                            <p className="text-amber-700/80 dark:text-amber-400/80 text-sm font-medium">{stats.urgentViolations.length} 件即將到期，請盡速處理</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stats.urgentViolations.map(v => (
-                            <div key={v.id} className="flex flex-col justify-between bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-amber-100/50 dark:border-amber-900/30 hover:shadow-md transition-all hover:-translate-y-1 duration-300">
-                                <div className="mb-4">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-xs rounded-full font-bold">
-                                            <Clock size={12} /> 剩 {getDaysRemaining(v.lectureDeadline)} 天
-                                        </span>
-                                        <span className="text-xs text-slate-400 font-medium">{formatDate(v.lectureDeadline)}</span>
-                                    </div>
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1 text-base mb-1" title={v.projectName}>{v.projectName}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-md inline-block">{v.contractorName}</p>
-                                </div>
-                                <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
-                                    {v.description || '無說明'}
+                <div className="relative overflow-hidden bg-gradient-to-r from-orange-400 to-rose-500 rounded-[2rem] p-[2px] shadow-lg shadow-orange-500/20">
+                    <div className="bg-white/95 dark:bg-[#1A2234]/95 backdrop-blur-xl rounded-[30px] p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center gap-8">
+                        <div className="flex-shrink-0 flex items-center gap-5">
+                            <div className="p-4 bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-2xl animate-pulse ring-4 ring-orange-50 dark:ring-orange-500/10">
+                                <AlertTriangle size={32} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
+                                    緊急處理事項
+                                </h2>
+                                <p className="text-orange-600 dark:text-orange-400 text-sm font-bold flex items-center gap-1 mt-1">
+                                    <Clock size={16} /> 有 {stats.urgentViolations.length} 件違規紀錄即將到期
                                 </p>
                             </div>
-                        ))}
+                        </div>
+
+                        {/* Scrollable Alerts Row */}
+                        <div className="flex-1 w-full overflow-x-auto pb-4 -mb-4 smooth-scroll no-scrollbar">
+                            <div className="flex gap-4 w-max pr-8">
+                                {stats.urgentViolations.map(v => (
+                                    <div key={v.id} className="w-80 bg-slate-50 dark:bg-[#20293A] border border-slate-100 dark:border-white/5 rounded-2xl p-5 flex flex-col justify-between hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-200 dark:hover:border-orange-500/30 cursor-pointer transition-all duration-300 group shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200 line-clamp-1 mr-2">{v.projectName}</span>
+                                            <span className="px-2.5 py-1 bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 text-[10px] tracking-wider font-black rounded-lg whitespace-nowrap">剩 {getDaysRemaining(v.lectureDeadline)} 天</span>
+                                        </div>
+                                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex justify-between items-center">
+                                            <span className="bg-white dark:bg-sidebar px-2 py-1 rounded-md shadow-sm border border-slate-100 dark:border-white/5">{v.contractorName}</span>
+                                            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-orange-500 flex items-center gap-1 font-bold">盡速處理 <Clock size={12} /></span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -411,7 +394,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(26, 34, 52, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+                                        backdropFilter: 'blur(12px)',
+                                        border: document.documentElement.classList.contains('dark') ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
+                                        borderRadius: '16px',
+                                        color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                                    }}
+                                    itemStyle={{
+                                        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
+                                        fontWeight: 600
+                                    }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
@@ -435,8 +431,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} dy={10} />
                                 <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                                 <Tooltip
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                    cursor={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255,255,255,0.03)' : '#f8fafc' }}
+                                    contentStyle={{
+                                        backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(26, 34, 52, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+                                        backdropFilter: 'blur(12px)',
+                                        border: document.documentElement.classList.contains('dark') ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
+                                        borderRadius: '16px',
+                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                                    }}
+                                    itemStyle={{
+                                        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
+                                        fontWeight: 600
+                                    }}
                                 />
                                 <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40}>
                                     {chartData.statusChartData.map((entry, index) => (
@@ -478,7 +484,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={2} stroke="#fff" />
                                 ))}
                             </Pie>
-                            <Tooltip contentStyle={{ borderRadius: '12px', padding: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(26, 34, 52, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+                                    backdropFilter: 'blur(12px)',
+                                    border: document.documentElement.classList.contains('dark') ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
+                                    borderRadius: '16px',
+                                    color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+                                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                                }}
+                                itemStyle={{
+                                    color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569',
+                                    fontWeight: 600
+                                }}
+                            />
                             <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ right: 0 }} />
                         </PieChart>
                     </ResponsiveContainer>
@@ -491,49 +510,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     <div className="bg-white dark:bg-sidebar rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-white/5 overflow-hidden h-full">
                         <div className="p-8 border-b border-slate-50 dark:border-white/5 flex justify-between items-center">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">最近違規紀錄</h3>
-                                <p className="text-sm text-slate-400">系統最新登錄的 5 筆資料</p>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">最近違規動態</h3>
+                                <p className="text-sm text-slate-400">系統最新登錄的違規案件</p>
                             </div>
                             <div className="p-2 bg-slate-50 dark:bg-slate-800/50 text-slate-500 rounded-xl">
                                 <Clock size={20} />
                             </div>
                         </div>
-                        <div className="divide-y divide-slate-50 dark:divide-white/5">
-                            {violations.slice(0, 5).map(v => (
-                                <div key={v.id} className="p-5 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-all flex items-center justify-between group cursor-pointer">
-                                    <div className="flex items-center gap-5">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold text-white shadow-md ${v.status === ViolationStatus.COMPLETED ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-indigo-400 to-indigo-600'}`}>
-                                            {v.contractorName ? v.contractorName.charAt(0) : '?'}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{v.contractorName}</div>
-                                            <div className="text-sm text-slate-400 flex items-center gap-2">
-                                                <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-400">{v.projectName}</span>
-                                                <span className="text-slate-300 dark:text-slate-600">|</span>
-                                                <span>{v.violationDate}</span>
+                        <div className="p-6">
+                            <div className="relative border-l-2 border-slate-100 dark:border-slate-700/50 ml-6 space-y-6 pb-4">
+                                {violations.slice(0, 5).map((v, i) => (
+                                    <div key={v.id} className="relative pl-8 group">
+                                        {/* Timeline Dot */}
+                                        <div className={`absolute -left-[11px] top-1.5 w-5 h-5 rounded-full border-4 border-white dark:border-sidebar shadow-sm ${v.status === ViolationStatus.COMPLETED ? 'bg-emerald-500' : v.status === ViolationStatus.PENDING ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
+
+                                        <div className="bg-slate-50 dark:bg-[#20293A] p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-800 dark:text-slate-100 text-base">{v.contractorName}</span>
+                                                    <span className="bg-white dark:bg-sidebar px-2 py-0.5 rounded-md text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5 shadow-sm line-clamp-1 max-w-[120px] md:max-w-xs">{v.projectName}</span>
+                                                </div>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${v.status === ViolationStatus.COMPLETED
+                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                                                    : v.status === ViolationStatus.PENDING
+                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                                                        : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400'
+                                                    }`}>
+                                                    {getStatusLabel(v.status)}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mb-2">
+                                                {v.description || '無詳細說明'}
+                                            </div>
+                                            <div className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+                                                <Clock size={12} /> 違規日期: {v.violationDate}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${v.status === ViolationStatus.COMPLETED
-                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                            : v.status === ViolationStatus.PENDING
-                                                ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                                : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                                            }`}>
-                                            {getStatusLabel(v.status)}
-                                        </span>
+                                ))}
+                                {violations.length === 0 && (
+                                    <div className="pl-8 py-8 text-slate-400 flex flex-col items-center gap-3">
+                                        <div className="p-4 bg-slate-50 rounded-full">
+                                            <FileWarning size={32} />
+                                        </div>
+                                        <p>目前無違規紀錄</p>
                                     </div>
-                                </div>
-                            ))}
-                            {violations.length === 0 && (
-                                <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-3">
-                                    <div className="p-4 bg-slate-50 rounded-full">
-                                        <FileWarning size={32} />
-                                    </div>
-                                    <p>目前無違規紀錄</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
