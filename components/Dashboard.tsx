@@ -23,6 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
     // State for dashboard controls
     const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // Viewer Mode
     const [statusPieMode, setStatusPieMode] = useState<'AMOUNT' | 'COUNT'>('AMOUNT');
+    const [statusGroupBy, setStatusGroupBy] = useState<'TEAM' | 'CONTRACTOR'>('TEAM');
     const [dashboardMonth, setDashboardMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -90,23 +91,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
     // Chart Data Memoization
     const chartData = useMemo(() => {
-        // 1. Group by Host Team (Amount & Count from Fines)
-        const teamDataMap = new Map<string, { amount: number; count: number }>();
-        fines.forEach(f => {
-            const team = f.hostTeam || '未歸類';
-            const current = teamDataMap.get(team) || { amount: 0, count: 0 };
-            teamDataMap.set(team, {
-                amount: current.amount + (Number(f.subtotal) || 0),
-                count: current.count + 1
-            });
-        });
-        const teamChartData = Array.from(teamDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
+        // 1. Group by Host Team (Amount & Count from Fines) - Current & Previous Month
+        const teamDataMap = new Map<string, { currAmount: number; prevAmount: number; currCount: number; prevCount: number }>();
+        const [targetYear, targetMonth] = dashboardMonth.split('-').map(Number);
 
-        // 2. Group by "案件狀態" (Actually "開單類型" or "違規項目" for Fines since Fines don't have a processing Status)
+        // Calculate previous month exactly
+        const d = new Date(targetYear, targetMonth - 1, 1);
+        d.setMonth(d.getMonth() - 1);
+        const prevYear = d.getFullYear();
+        const prevMonth = d.getMonth() + 1;
+
+        fines.forEach(f => {
+            if (!f.date) return;
+            const team = f.hostTeam || '未歸類';
+            const fDate = new Date(f.date.replace(/\//g, '-'));
+            const fYear = fDate.getFullYear();
+            const fMon = fDate.getMonth() + 1;
+
+            const isCurrentMonth = fYear === targetYear && fMon === targetMonth;
+            const isPrevMonth = fYear === prevYear && fMon === prevMonth;
+
+            if (!isCurrentMonth && !isPrevMonth) return;
+
+            const current = teamDataMap.get(team) || { currAmount: 0, prevAmount: 0, currCount: 0, prevCount: 0 };
+
+            if (isCurrentMonth) {
+                current.currAmount += (Number(f.subtotal) || 0);
+                current.currCount += 1;
+            } else if (isPrevMonth) {
+                current.prevAmount += (Number(f.subtotal) || 0);
+                current.prevCount += 1;
+            }
+            teamDataMap.set(team, current);
+        });
+        const teamChartData = Array.from(teamDataMap, ([name, { currAmount, prevAmount, currCount, prevCount }]) => ({ name, currAmount, prevAmount, currCount, prevCount }));
+
+        // 2. Group by Host Team or Contractor (for Status Pie)
         const statusDataMap = new Map<string, { amount: number; count: number }>();
         fines.forEach(f => {
-            // Using ticketType (開單類型) or defaulting to 違規項目 or '未分類'
-            const label = f.ticketType ? String(f.ticketType).trim() : (f.violationItem ? String(f.violationItem).trim() : '未分類');
+            const label = statusGroupBy === 'TEAM' ? (f.hostTeam || '未歸類') : (f.contractor || '未分類');
             const displayLabel = label === '' ? '未分類' : label;
 
             const current = statusDataMap.get(displayLabel) || { amount: 0, count: 0 };
@@ -115,14 +138,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 count: current.count + 1
             });
         });
-        const statusChartData = Array.from(statusDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
+        const statusChartData = Array.from(statusDataMap, ([name, { amount, count }]) => ({ name, amount, count })).sort((a, b) => b.amount - a.amount);
 
         // 3. 6-Month Trend Data (From Fines)
         const trendDataMap = new Map<string, { amount: number; count: number }>();
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const tempD = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthStr = `${tempD.getFullYear()}-${String(tempD.getMonth() + 1).padStart(2, '0')}`;
             trendDataMap.set(monthStr, { amount: 0, count: 0 });
         }
 
@@ -140,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         const trendChartData = Array.from(trendDataMap, ([name, { amount, count }]) => ({ name, amount, count }));
 
         return { teamChartData, statusChartData, trendChartData };
-    }, [fines]);
+    }, [fines, dashboardMonth, statusGroupBy]);
 
     const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#38bdf8', '#c084fc', '#f87171']; // Refined modern palette
 
@@ -398,15 +421,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">各工作隊違規與罰款分佈</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">雙軸長條+折線混合圖</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">單月與前一個月比較</p>
                         </div>
                         <div className="p-3 bg-indigo-50 dark:bg-[#2B2F36] text-indigo-600 dark:text-indigo-400 rounded-2xl shadow-sm">
                             <BarChart3 size={24} strokeWidth={2.5} />
                         </div>
                     </div>
-                    <div className="h-72">
+                    <div className="h-80">
                         <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={chartData.teamChartData}>
+                            <ComposedChart data={chartData.teamChartData} margin={{ top: 10, right: -10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={document.documentElement.classList.contains('dark') ? 0.05 : 1} />
                                 <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
                                 <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
@@ -423,8 +446,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                                     }}
                                 />
                                 <Legend />
-                                <Bar yAxisId="left" dataKey="amount" name="罰款總額" fill="#6366f1" radius={[8, 8, 0, 0]} maxBarSize={50} />
-                                <Line yAxisId="right" type="monotone" dataKey="count" name="違規件數" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                <Bar yAxisId="left" dataKey="currAmount" name="本月罰款" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                                <Bar yAxisId="left" dataKey="prevAmount" name="上月罰款" fill="#cbd5e1" radius={[4, 4, 0, 0]} maxBarSize={30} opacity={0.7} />
+                                <Line yAxisId="right" type="monotone" dataKey="currCount" name="本月件數" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                <Line yAxisId="right" type="monotone" dataKey="prevCount" name="上月件數" stroke="#94a3b8" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="3 3" opacity={0.7} />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
@@ -434,23 +459,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02]">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件狀態統計</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">目前所有違規案件處理進度</p>
+                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件分佈統計</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">累積罰款與案件佔比總覽</p>
                         </div>
-                        {/* Segmented Toggle */}
-                        <div className="flex bg-slate-100 dark:bg-[#2B2F36] p-1 rounded-xl shadow-inner">
-                            <button
-                                onClick={() => setStatusPieMode('AMOUNT')}
-                                className={`px-4 py-2 text-[13px] font-bold rounded-lg transition-all ${statusPieMode === 'AMOUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                            >
-                                💰 罰款金額
-                            </button>
-                            <button
-                                onClick={() => setStatusPieMode('COUNT')}
-                                className={`px-4 py-2 text-[13px] font-bold rounded-lg transition-all ${statusPieMode === 'COUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                            >
-                                📄 違規件數
-                            </button>
+                        {/* Segmented Toggles */}
+                        <div className="flex flex-col gap-2 relative z-10 items-end">
+                            <div className="flex bg-slate-100 dark:bg-[#2B2F36] p-1 rounded-xl shadow-inner max-w-fit">
+                                <button
+                                    onClick={() => setStatusGroupBy('TEAM')}
+                                    className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${statusGroupBy === 'TEAM' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                    🏢 主辦工作隊
+                                </button>
+                                <button
+                                    onClick={() => setStatusGroupBy('CONTRACTOR')}
+                                    className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${statusGroupBy === 'CONTRACTOR' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                    👷 承攬商
+                                </button>
+                            </div>
+                            <div className="flex bg-slate-100 dark:bg-[#2B2F36] p-1 rounded-xl shadow-inner max-w-fit">
+                                <button
+                                    onClick={() => setStatusPieMode('AMOUNT')}
+                                    className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${statusPieMode === 'AMOUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                    💰 罰款金額
+                                </button>
+                                <button
+                                    onClick={() => setStatusPieMode('COUNT')}
+                                    className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${statusPieMode === 'COUNT' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                    📄 違規件數
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="h-72">
