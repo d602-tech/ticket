@@ -87,6 +87,7 @@ function App() {
                     setFines(data.fines);
                     setFineList(data.fineList);
                     setSections(data.sections);
+                    console.log(`[DEBUG] fetchInitialData loaded ${data.violations.length} violations for role ${currentUserRole}`);
                     // Users are fetched separately based on role
                     if (currentUserRole === 'admin') {
                         const usersData = await fetchUsers(currentUserRole);

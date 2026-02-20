@@ -1233,7 +1233,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                         {(() => {
                                             const v = violations.find(v =>
                                                 v.ticketNumbers?.includes(t.ticketNumber) ||
-                                                v.description.includes(t.ticketNumber)
+                                                v.description?.includes(t.ticketNumber)
                                             );
                                             if (!v) return <span className="text-slate-400 text-xs">-</span>;
                                             if (v.status === ViolationStatus.COMPLETED) return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">已結案</span>;
