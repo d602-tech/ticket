@@ -3,12 +3,13 @@ import {
     Search, Filter, Briefcase, Plus, Mail, FileText, Upload, RefreshCw, Edit2, Trash2,
     FileWarning, Download, CheckCircle2, Clock
 } from 'lucide-react';
-import { Violation, Project, ViolationStatus } from '../types';
+import { Violation, Project, ViolationStatus, Fine } from '../types';
 import { getDaysRemaining, formatDate, getStatusLabel } from '../utils';
 
 interface ViolationListProps {
     violations: Violation[];
     projects: Project[];
+    fines: Fine[];
     hostTeams: string[];
     isLoading: boolean;
     onAdd: () => void;
@@ -20,7 +21,7 @@ interface ViolationListProps {
 }
 
 export const ViolationList: React.FC<ViolationListProps> = ({
-    violations, projects, hostTeams, isLoading,
+    violations, projects, fines, hostTeams, isLoading,
     onAdd, onEdit, onDelete, onGenerateDoc, onUploadScan, onEmail
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -119,6 +120,11 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         <div className="flex-1 mr-2">
                                             <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 leading-snug">{violation.contractorName}</h3>
                                             <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">{violation.projectName}</p>
+                                            {violation.ticketNumbers && (
+                                                <p className="text-xs text-indigo-500 dark:text-indigo-400 font-mono mt-1 break-all">
+                                                    🎟️ {violation.ticketNumbers}
+                                                </p>
+                                            )}
                                         </div>
                                         <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' :
                                             violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
@@ -205,6 +211,11 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-slate-900 dark:text-slate-100">{violation.contractorName}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{violation.projectName}</div>
+                                            {violation.ticketNumbers && (
+                                                <div className="text-xs text-indigo-500 dark:text-indigo-400 font-mono mt-1 w-48 break-all">
+                                                    🎟️ {violation.ticketNumbers}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 max-w-xs">
                                             <div className="text-sm text-slate-700 dark:text-slate-300 truncate" title={violation.description}>

@@ -32,6 +32,7 @@ export interface Violation {
   isMajorViolation?: boolean; // 是否重大違規/永久失能
   participants?: string; // 應參加講習人員
   completionDate?: string; // 完成日期 YYYY-MM-DD
+  ticketNumbers?: string; // 連結罰單編號 (逗號分隔)
 }
 
 export interface Fine {

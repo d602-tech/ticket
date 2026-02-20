@@ -1231,7 +1231,10 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                     <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
                                     <td className="px-4 py-3 text-center">
                                         {(() => {
-                                            const v = violations.find(v => v.description.includes(t.ticketNumber));
+                                            const v = violations.find(v =>
+                                                v.ticketNumbers?.includes(t.ticketNumber) ||
+                                                v.description.includes(t.ticketNumber)
+                                            );
                                             if (!v) return <span className="text-slate-400 text-xs">-</span>;
                                             if (v.status === ViolationStatus.COMPLETED) return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">已結案</span>;
                                             return <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">辦理中</span>;

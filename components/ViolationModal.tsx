@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Calendar, ChevronDown, FileText, DollarSign, Users } from 'lucide-react';
-import { Project, Violation, ViolationStatus } from '../types';
+import { Project, Violation, ViolationStatus, Fine } from '../types';
 import { addDays, generateId } from '../utils';
 import { COMMON_VIOLATIONS } from '../services/storageService';
 
@@ -9,10 +9,26 @@ interface ViolationModalProps {
   onClose: () => void;
   onSave: (violation: Violation, fileData?: { name: string, type: string, base64: string }) => void;
   projects: Project[];
+  fines: Fine[];
   initialData?: Violation | null;
 }
 
-export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose, onSave, projects, initialData }) => {
+// Group Fines array
+const groupFinesByTicket = (fines: Fine[]) => {
+  const map = new Map<string, { totalAmount: number, items: number }>();
+  fines.forEach(f => {
+    if (!f.ticketNumber) return;
+    if (!map.has(f.ticketNumber)) {
+      map.set(f.ticketNumber, { totalAmount: 0, items: 0 });
+    }
+    const current = map.get(f.ticketNumber)!;
+    current.items += 1;
+    current.totalAmount += Number(f.subtotal) || 0;
+  });
+  return map;
+};
+
+export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose, onSave, projects, fines, initialData }) => {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
 
   const [formData, setFormData] = useState<Partial<Violation>>({
@@ -24,7 +40,8 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     fineAmount: 0,
     isMajorViolation: false,
     participants: '',
-    completionDate: ''
+    completionDate: '',
+    ticketNumbers: ''
   });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -50,7 +67,8 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
         fineAmount: 0,
         isMajorViolation: false,
         participants: '',
-        completionDate: ''
+        completionDate: '',
+        ticketNumbers: ''
       });
     }
   }, [isOpen, initialData]);
@@ -185,6 +203,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       isMajorViolation: formData.isMajorViolation || false,
       participants: formData.participants || '',
       completionDate: formData.completionDate || '',
+      ticketNumbers: formData.ticketNumbers || '',
       // Preserve other fields
       documentUrl: initialData?.documentUrl,
       scanFileName: initialData?.scanFileName,
@@ -245,6 +264,54 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
               <p className="text-xs text-red-500 mt-1">錯誤：此工程尚未設定承攬商。</p>
             )}
           </div>
+
+          {/* Associated Fine Tickets (Multi-select) */}
+          {formData.projectName && (
+            <div className="p-4 bg-indigo-50/50 rounded-lg border border-indigo-100">
+              <label className="block text-sm font-bold text-indigo-800 mb-2 flex items-center gap-2">
+                <DollarSign size={16} /> 關聯罰單 (多選)
+              </label>
+              <div className="max-h-32 overflow-y-auto bg-white border border-indigo-100 rounded-lg p-2 space-y-1">
+                {(() => {
+                  const projectFines = fines.filter(f => f.projectName === formData.projectName && f.ticketNumber);
+                  const groupedFines = groupFinesByTicket(projectFines);
+                  const currentSelected = formData.ticketNumbers ? formData.ticketNumbers.split(',') : [];
+
+                  if (groupedFines.size === 0) {
+                    return <div className="text-sm text-slate-400 p-2 text-center">此工程目前無任何罰款單可以關聯</div>;
+                  }
+
+                  return Array.from(groupedFines.entries()).map(([ticketNumber, stats]) => {
+                    const isSelected = currentSelected.includes(ticketNumber);
+                    return (
+                      <label key={ticketNumber} className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50 border-indigo-200' : 'hover:bg-slate-50 border-transparent'} border`}>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              let newSelected = [...currentSelected];
+                              if (checked) newSelected.push(ticketNumber);
+                              else newSelected = newSelected.filter(t => t !== ticketNumber);
+
+                              setFormData({ ...formData, ticketNumbers: newSelected.join(',') });
+                            }}
+                          />
+                          <span className="font-mono text-sm text-slate-700 font-medium">{ticketNumber}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                          <span>{stats.items} 項</span>
+                          <span className="font-bold text-red-600">${stats.totalAmount.toLocaleString()}</span>
+                        </div>
+                      </label>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Violation Date */}

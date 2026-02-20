@@ -797,6 +797,7 @@ function App() {
                 {view === 'VIOLATIONS' && <ViolationList
                     violations={violations}
                     projects={projects}
+                    fines={fines}
                     hostTeams={HOST_TEAMS}
                     isLoading={isLoading}
                     onAdd={() => { setEditingViolation(null); setViolationModalOpen(true); }}
@@ -812,7 +813,7 @@ function App() {
                 {view === 'PERSONNEL' && <PersonnelManagement sections={sections} onSaveSections={setSections} syncService={syncData} />}
             </main>
 
-            <ViolationModal isOpen={isViolationModalOpen} onClose={() => setViolationModalOpen(false)} onSave={handleSaveViolation} projects={projects} initialData={editingViolation} />
+            <ViolationModal isOpen={isViolationModalOpen} onClose={() => setViolationModalOpen(false)} onSave={handleSaveViolation} projects={projects} initialData={editingViolation} fines={fines} />
             <EmailPreview isOpen={emailState.isOpen} onClose={() => setEmailState({ isOpen: false, violation: null })} onSend={handleEmailSent} violation={emailState.violation as Violation} coordinator={emailState.violation ? getCoordinatorForProject(emailState.violation.projectName) : undefined} currentUserEmail={currentUserEmail} />
             <LoadingModal isOpen={isLoading} message="處理中..." />
         </div>

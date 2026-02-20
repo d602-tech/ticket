@@ -34,7 +34,8 @@ var HEADER_MAP = {
     'fineAmount': '罰款金額',
     'isMajorViolation': '重大違規',
     'participants': '參加人員',
-    'completionDate': '完成日期'
+    'completionDate': '完成日期',
+    'ticketNumbers': '連結罰單編號'
   },
   'Projects': {
     'id': '此欄位請勿更動 (ID)',
