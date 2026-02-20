@@ -820,11 +820,29 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">罰單編號 *</label>
-                                <input type="text" className="w-full p-2 border rounded-lg"
-                                    value={currentTicket.ticketNumber || ''}
-                                    onChange={e => setCurrentTicket({ ...currentTicket, ticketNumber: e.target.value })}
-                                    placeholder="輸入罰單編號"
-                                />
+                                <div className="flex gap-2">
+                                    <input type="text" className="w-full p-2 border rounded-lg"
+                                        value={currentTicket.ticketNumber || ''}
+                                        onChange={e => setCurrentTicket({ ...currentTicket, ticketNumber: e.target.value })}
+                                        placeholder="輸入罰單編號"
+                                    />
+                                    {currentTicket.projectName && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const proj = projects.find(p => p.name === currentTicket.projectName);
+                                                if (proj && proj.contractNumber) {
+                                                    setCurrentTicket({ ...currentTicket, ticketNumber: proj.contractNumber });
+                                                } else {
+                                                    alert('此工程無契約編號');
+                                                }
+                                            }}
+                                            className="whitespace-nowrap px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg border border-slate-200"
+                                        >
+                                            預設契約編號
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">開罰日期 *</label>
@@ -918,34 +936,43 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     </div>
 
                     {/* 罰單掃描檔上傳 */}
-                    {currentTicket.ticketNumber && (
-                        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <FileUp size={18} className="text-amber-600" />
-                                <span className="text-sm font-medium text-amber-800">罰單掃描檔</span>
-                                {currentTicket.scanFileUrl ? (
-                                    <a href={currentTicket.scanFileUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 font-medium underline"
-                                    >
-                                        <ExternalLink size={14} /> {currentTicket.scanFileName || '檢視掃描檔'}
-                                    </a>
-                                ) : (
-                                    <span className="text-xs text-amber-600">尚未上傳</span>
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => handleUploadFineScan(currentTicket.ticketNumber!)}
-                                className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
-                            >
-                                <Upload size={14} /> {currentTicket.scanFileUrl ? '重新上傳' : '上傳掃描檔'}
-                            </button>
+                    <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <FileUp size={18} className="text-amber-600" />
+                            <span className="text-sm font-medium text-amber-800">罰單掃描檔 (輸入中即可上傳)</span>
+                            {currentTicket.scanFileUrl ? (
+                                <a href={currentTicket.scanFileUrl} target="_blank" rel="noopener noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 font-medium underline"
+                                >
+                                    <ExternalLink size={14} /> {currentTicket.scanFileName || '檢視掃描檔'}
+                                </a>
+                            ) : (
+                                <span className="text-xs text-amber-600">尚未上傳</span>
+                            )}
                         </div>
-                    )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!currentTicket.ticketNumber) {
+                                    alert('請先填寫上方「罰單編號」才能上傳掃描檔');
+                                    return;
+                                }
+                                handleUploadFineScan(currentTicket.ticketNumber);
+                            }}
+                            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors border border-amber-200 shadow-sm"
+                        >
+                            <Upload size={14} /> {currentTicket.scanFileUrl ? '重新上傳' : '上傳掃描檔'}
+                        </button>
+                    </div>
+
                     {/* Fine Items Input Area */}
-                    <div className="p-4 bg-indigo-50 border-b border-indigo-100">
-                        <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2">
-                            <Plus size={16} /> 新增罰款項目
+                    <div className="p-5 bg-indigo-50 border-b-2 border-indigo-200 relative">
+                        <div className="absolute top-0 left-4 -mt-3 bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full border border-indigo-200">
+                            子項目輸入區
+                        </div>
+                        <h4 className="font-bold text-indigo-800 mb-3 flex items-center gap-2 mt-2">
+                            <Plus size={18} className="bg-indigo-600 text-white rounded-full p-0.5" />
+                            新增罰款細項 (可新增多筆至此罰單內)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                             <div className="md:col-span-4">

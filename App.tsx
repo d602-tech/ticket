@@ -423,7 +423,7 @@ function App() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    {['admin', 'user', 'viewer'].map(role => {
+                    {['admin', 'user', 'fine_inputter', 'viewer'].map(role => {
                         const roleUsers = users.filter(u => u.role === role);
                         if (roleUsers.length === 0) return null;
                         const style = getRoleStyle(role);
