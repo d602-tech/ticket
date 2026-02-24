@@ -3,7 +3,7 @@ import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, Line, Area
 } from 'recharts';
 import {
-    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users, Calendar, BarChart3, TrendingUp
+    LayoutDashboard, FileWarning, AlertTriangle, CheckCircle2, Clock, DollarSign, FileText, Users, Calendar, BarChart3, TrendingUp, Filter
 } from 'lucide-react';
 import { Violation, Project, Fine, ViolationStatus } from '../types';
 import { VersionHistory } from './VersionHistory';
@@ -22,6 +22,8 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects, fines }) => {
     // State for dashboard controls
     const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // Viewer Mode
+    const [viewerFilterText, setViewerFilterText] = useState(''); // Viewer Mode Filter
+    const [viewerSortConfig, setViewerSortConfig] = useState<{ key: keyof Fine | 'amount', direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' }); // Viewer Mode Sort
     const [statusPieMode, setStatusPieMode] = useState<'AMOUNT' | 'COUNT'>('AMOUNT');
     const [statusGroupBy, setStatusGroupBy] = useState<'TEAM' | 'CONTRACTOR'>('TEAM');
     const [dashboardMonth, setDashboardMonth] = useState(() => {
@@ -181,6 +183,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
 
         const viewerMonthlyTotal = viewerMonthlyFines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
 
+        // Calculate Contractor Ranking for Viewer
+        const contractorRanking = Object.entries(viewerMonthlyFines.reduce((acc, curr) => {
+            const cName = curr.contractor || '未指定';
+            if (!acc[cName]) acc[cName] = { amount: 0, count: 0 };
+            acc[cName].amount += (Number(curr.subtotal) || 0);
+            acc[cName].count += 1;
+            return acc;
+        }, {} as Record<string, { amount: number, count: number }>))
+            .sort(([, a], [, b]) => b.amount - a.amount).slice(0, 5);
+
+        // Filtering and Sorting for Viewer Table
+        let processedFines = [...viewerMonthlyFines];
+        if (viewerFilterText) {
+            const lowerFilter = viewerFilterText.toLowerCase();
+            processedFines = processedFines.filter(f =>
+                (f.contractor || '').toLowerCase().includes(lowerFilter) ||
+                (f.projectName || '').toLowerCase().includes(lowerFilter) ||
+                (f.violationItem || '').toLowerCase().includes(lowerFilter)
+            );
+        }
+        processedFines.sort((a, b) => {
+            let valA: any = a[viewerSortConfig.key as keyof Fine] || '';
+            let valB: any = b[viewerSortConfig.key as keyof Fine] || '';
+            if (viewerSortConfig.key === 'amount') {
+                valA = Number(a.subtotal) || 0;
+                valB = Number(b.subtotal) || 0;
+            } else if (viewerSortConfig.key === 'date') {
+                valA = new Date(valA as string).getTime();
+                valB = new Date(valB as string).getTime();
+            }
+            if (valA < valB) return viewerSortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return viewerSortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+
+        const requestViewerSort = (key: keyof Fine | 'amount') => {
+            let direction: 'ascending' | 'descending' = 'ascending';
+            if (viewerSortConfig.key === key && viewerSortConfig.direction === 'ascending') {
+                direction = 'descending';
+            }
+            setViewerSortConfig({ key, direction });
+        };
+
+        const getSortIcon = (key: keyof Fine | 'amount') => {
+            if (viewerSortConfig.key !== key) return <span className="text-slate-300 ml-1">↕</span>;
+            return viewerSortConfig.direction === 'ascending' ? <span className="text-indigo-600 ml-1">↑</span> : <span className="text-indigo-600 ml-1">↓</span>;
+        };
+
         return (
             <div className="animate-fade-in space-y-6 max-w-5xl mx-auto">
                 <div className="flex items-center justify-between">
@@ -224,38 +274,95 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                     </div>
                 </div>
 
+                {/* Monthly Contractor Leaderboard for Viewer */}
+                <div className="bg-gradient-to-br from-indigo-50/50 via-white to-indigo-50/50 p-6 md:p-8 rounded-[32px] shadow-sm border border-indigo-100 dark:border-white/[0.05] dark:from-[#1E2024] dark:to-[#1E2024]">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">當月承攬商罰單排行榜 Top 5</h3>
+                            <p className="text-sm text-slate-500 font-medium mt-1">本月累計總金額最高之承攬商</p>
+                        </div>
+                        <div className="p-3 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl shadow-inner">
+                            <TrendingUp size={24} strokeWidth={2.5} />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 relative">
+                        {contractorRanking.map(([name, data], idx) => (
+                            <div key={name} className="bg-white dark:bg-[#2B2F36] rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-white/[0.05] flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
+                                <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/20 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black shadow-sm ${idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : idx === 1 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' : idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'} border border-white/50 dark:border-white/[0.02]`}>
+                                            {idx + 1}
+                                        </div>
+                                        <span className="font-bold text-slate-800 dark:text-slate-100 truncate pr-2 flex-1" title={name}>{name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#1E2024] px-2.5 py-1.5 rounded-lg w-fit">
+                                        <FileWarning size={14} className="text-indigo-400" />
+                                        <span>計 {data.count} 件違規</span>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-50 dark:border-white/[0.05] z-10 relative flex flex-col">
+                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">本月累計金額</span>
+                                    <span className={`text-2xl font-black tracking-tight ${idx === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                        <span className="text-sm mr-1 opacity-70">$</span>{data.amount.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                        {contractorRanking.length === 0 && (
+                            <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white/50 dark:bg-[#1E2024]/50 rounded-2xl border border-dashed border-slate-200 dark:border-white/[0.1]">
+                                <AlertTriangle className="w-8 h-8 mb-2 opacity-50 text-indigo-400" />
+                                <p className="text-sm font-bold">本月目前無任何罰單數據</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 <div className="bg-white dark:bg-[#1E2024] rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02] overflow-hidden">
-                    <div className="p-8 border-b border-slate-50 dark:border-white/[0.02]">
-                        <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">罰單明細</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">本月所有登錄之罰單資訊</p>
+                    <div className="p-8 border-b border-slate-50 dark:border-white/[0.02] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">罰單明細 (進階篩選)</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">點擊表頭可進行排序</p>
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#2B2F36] p-2 rounded-xl w-full sm:w-64 border border-slate-100 dark:border-white/[0.05]">
+                            <Filter size={18} className="text-slate-400 ml-2" />
+                            <input
+                                type="text"
+                                placeholder="搜尋承攬商、工程或項目..."
+                                value={viewerFilterText}
+                                onChange={(e) => setViewerFilterText(e.target.value)}
+                                className="bg-transparent border-none outline-none text-sm w-full text-slate-700 dark:text-slate-200 placeholder-slate-400"
+                            />
+                        </div>
                     </div>
                     <div className="overflow-x-auto p-4">
-                        <table className="w-full text-sm text-left border-separate border-spacing-y-2">
-                            <thead className="bg-slate-50 dark:bg-[#2B2F36] text-slate-500 dark:text-slate-400 font-medium rounded-xl">
+                        <table className="w-full text-sm text-left border-separate border-spacing-y-2 relative">
+                            <thead className="bg-slate-50 dark:bg-[#2B2F36] text-slate-500 dark:text-slate-400 font-bold rounded-xl sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-6 py-4 rounded-l-2xl">日期</th>
-                                    <th className="px-6 py-4">承攬商</th>
-                                    <th className="px-6 py-4">工程名稱</th>
-                                    <th className="px-6 py-4">違規項目</th>
-                                    <th className="px-6 py-4 text-right rounded-r-2xl">金額</th>
+                                    <th className="px-6 py-4 rounded-l-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition" onClick={() => requestViewerSort('date')}>日期 {getSortIcon('date')}</th>
+                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition" onClick={() => requestViewerSort('contractor')}>承攬商 {getSortIcon('contractor')}</th>
+                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition" onClick={() => requestViewerSort('projectName')}>工程名稱 {getSortIcon('projectName')}</th>
+                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition" onClick={() => requestViewerSort('violationItem')}>違規項目 {getSortIcon('violationItem')}</th>
+                                    <th className="px-6 py-4 text-right rounded-r-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition" onClick={() => requestViewerSort('amount')}>金額 {getSortIcon('amount')}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {viewerMonthlyFines.map((f, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-500 dark:text-slate-300">
-                                        <td className="px-6 py-4">{f.date}</td>
-                                        <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">{f.contractor}</td>
-                                        <td className="px-6 py-4">{f.projectName}</td>
-                                        <td className="px-6 py-4">{f.violationItem}</td>
-                                        <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
+                                {processedFines.map((f, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-[#2B2F36] transition-colors rounded-xl group/row">
+                                        <td className="px-6 py-4 font-mono text-slate-500 border-b border-transparent group-hover/row:border-slate-100 dark:group-hover/row:border-white/[0.02] first:rounded-l-xl">{f.date}</td>
+                                        <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 border-b border-transparent group-hover/row:border-slate-100 dark:group-hover/row:border-white/[0.02]">{f.contractor}</td>
+                                        <td className="px-6 py-4 border-b border-transparent text-slate-600 dark:text-slate-300 group-hover/row:border-slate-100 dark:group-hover/row:border-white/[0.02]">{f.projectName}</td>
+                                        <td className="px-6 py-4 border-b border-transparent text-slate-600 dark:text-slate-300 group-hover/row:border-slate-100 dark:group-hover/row:border-white/[0.02]">{f.violationItem}</td>
+                                        <td className="px-6 py-4 text-right font-mono font-bold text-slate-800 dark:text-slate-100 border-b border-transparent group-hover/row:border-slate-100 dark:group-hover/row:border-white/[0.02] last:rounded-r-xl">
                                             ${Number(f.subtotal).toLocaleString()}
                                         </td>
                                     </tr>
                                 ))}
-                                {viewerMonthlyFines.length === 0 && (
+                                {processedFines.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                                            本月無罰款紀錄
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                            找不到符合條件的違規紀錄
                                         </td>
                                     </tr>
                                 )}

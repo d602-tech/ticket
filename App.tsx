@@ -98,7 +98,7 @@ function App() {
                         if (pendingCount > 0) {
                             setTimeout(() => {
                                 if (window.confirm(`提示：目前有 ${pendingCount} 名待審核帳號申請，請前往「帳號管理」進行開通作業。\n是否立即前往？`)) {
-                                    setView('ACCOUNT_MANAGEMENT');
+                                    setView('USERS');
                                 }
                             }, 500);
                         }

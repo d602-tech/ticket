@@ -572,7 +572,7 @@ function handleRegisterUser(ss, data) {
 }
 
 function sendApprovalEmail(userEmail, userName) {
-  var subject = "【廠安管理系統】您的帳號已開通";
+  var subject = "【罰單暨違規講習管理系統】您的帳號已開通";
   var htmlBody = "<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>" +
     "<div style='text-align: center; margin-bottom: 30px;'>" +
     "<div style='background-color: #4f46e5; color: white; display: inline-block; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 18px; letter-spacing: 1px;'>廠安管理系統</div>" +
