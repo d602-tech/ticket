@@ -34,10 +34,15 @@ interface TicketGroup {
     totalAmount: number;
     scanFileName?: string;
     scanFileUrl?: string;
+    isRevoked?: boolean;
+    revokeReason?: string;
+    revokedBy?: string;
+    revokeDate?: string;
 }
 
 export function FineStats({ projects, fines, fineList, sections, onSaveFines, onSaveSections, onSaveProjects, onSaveViolation, violations, role }: FineStatsProps) {
     const [activeTab, setActiveTab] = useState<'stats' | 'manage'>('manage');
+    const [expandedTickets, setExpandedTickets] = useState<Set<string>>(new Set());
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ show: boolean; stage: string; fileName?: string }>({ show: false, stage: '' });
@@ -408,6 +413,42 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         setShowValidationAlert(false);
     };
 
+    const handleRevokeTicket = async (ticketNumber: string) => {
+        const reason = prompt(`請輸入撤銷罰單 ${ticketNumber} 的原因：`);
+        if (!reason) return;
+        if (!confirm(`確定要撤銷這張罰單嗎？撤銷後無法復原。`)) return;
+
+        setIsSaving(true);
+        try {
+            const updatedFines = fines.map(f => {
+                if (f.ticketNumber === ticketNumber) {
+                    return {
+                        ...f,
+                        isRevoked: true,
+                        revokeReason: reason,
+                        revokedBy: role === 'admin' ? '系統管理員' : '一般使用者',
+                        revokeDate: new Date().toISOString().split('T')[0]
+                    };
+                }
+                return f;
+            });
+            const result = await callGasApi({
+                action: 'syncData',
+                fines: updatedFines
+            });
+            if (result.success) {
+                onSaveFines(updatedFines);
+                alert('已撤銷');
+            } else {
+                alert('撤銷失敗: ' + result.error);
+            }
+        } catch (e) {
+            alert('撤銷發生錯誤');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleEditTicket = (ticketNo: string) => {
         const items = fines.filter(f => f.ticketNumber === ticketNo);
         if (items.length > 0) {
@@ -664,7 +705,11 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     items: [],
                     totalAmount: 0,
                     scanFileName: hasScan ? f.scanFileName : undefined,
-                    scanFileUrl: hasScan ? f.scanFileUrl : undefined
+                    scanFileUrl: hasScan ? f.scanFileUrl : undefined,
+                    isRevoked: Boolean(f.isRevoked),
+                    revokeReason: f.revokeReason,
+                    revokedBy: f.revokedBy,
+                    revokeDate: f.revokeDate
                 };
             }
             groups[tNo].items.push(f);
@@ -870,6 +915,25 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-3">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">工程名稱 (序號+簡稱) *</label>
+                                <select className="w-full p-2 border rounded-lg font-mono"
+                                    value={currentTicket.projectName || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, projectName: e.target.value })}
+                                >
+                                    <option value="">請選擇工程...</option>
+                                    {projects.map(p => (
+                                        <option key={p.id} value={p.name}>
+                                            {String(p.sequence).padStart(3, '0')} - {p.abbreviation}
+                                        </option>
+                                    ))}
+                                </select>
+                                {currentTicket.projectName && (
+                                    <div className="mt-1 text-sm text-slate-500 pl-2 border-l-2 border-slate-300">
+                                        {currentTicket.projectName}
+                                    </div>
+                                )}
+                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">罰單編號 *</label>
                                 <div className="flex gap-2">
@@ -917,31 +981,17 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                 />
                             </div>
                             <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊</label>
+                                <div className="p-2 bg-slate-100 rounded-lg text-slate-600 text-sm h-10 flex items-center">
+                                    {currentTicket.hostTeam || '-'}
+                                </div>
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">發文日期</label>
                                 <input type="date" className="w-full p-2 border rounded-lg"
                                     value={currentTicket.issueDate || ''}
                                     onChange={e => setCurrentTicket({ ...currentTicket, issueDate: e.target.value })}
                                 />
-                            </div>
-
-                            <div className="md:col-span-3">
-                                <label className="block text-sm font-medium text-slate-700 mb-1">工程名稱 (序號+簡稱) *</label>
-                                <select className="w-full p-2 border rounded-lg font-mono"
-                                    value={currentTicket.projectName || ''}
-                                    onChange={e => setCurrentTicket({ ...currentTicket, projectName: e.target.value })}
-                                >
-                                    <option value="">請選擇工程...</option>
-                                    {projects.map(p => (
-                                        <option key={p.id} value={p.name}>
-                                            {String(p.sequence).padStart(3, '0')} - {p.abbreviation}
-                                        </option>
-                                    ))}
-                                </select>
-                                {currentTicket.projectName && (
-                                    <div className="mt-1 text-sm text-slate-500 pl-2 border-l-2 border-slate-300">
-                                        {currentTicket.projectName}
-                                    </div>
-                                )}
                             </div>
 
                             <div>
@@ -1220,65 +1270,149 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {tickets.map((t, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleEditTicket(t.ticketNumber)}>
-                                    <td className="px-4 py-3 font-mono font-medium text-slate-700">{t.ticketNumber}</td>
-                                    <td className="px-4 py-3 font-mono text-xs">{formatDate(t.date)}</td>
-                                    <td className="px-4 py-3 font-medium text-slate-600">{t.projectName}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{t.items.length}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        {(() => {
-                                            const v = violations.find(v =>
-                                                v.ticketNumbers?.includes(t.ticketNumber) ||
-                                                v.description?.includes(t.ticketNumber)
-                                            );
-                                            if (!v) return <span className="text-slate-400 text-xs">-</span>;
-                                            if (v.status === ViolationStatus.COMPLETED) return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">已結案</span>;
-                                            return <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">辦理中</span>;
-                                        })()}
-                                    </td>
-                                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
-                                        {t.scanFileUrl ? (
-                                            <div className="flex items-center justify-center gap-1">
-                                                <a href={t.scanFileUrl} target="_blank" rel="noopener noreferrer"
-                                                    className="text-indigo-600 hover:text-indigo-800 text-xs flex items-center gap-1 font-medium"
-                                                    title={t.scanFileName}
-                                                >
-                                                    <ExternalLink size={14} /> 檢視
-                                                </a>
+                            {tickets.filter(t => !t.isRevoked).map((t, idx) => (
+                                <React.Fragment key={idx}>
+                                    <tr className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleEditTicket(t.ticketNumber)}>
+                                        <td className="px-4 py-3 font-mono font-medium text-slate-700 flex items-center gap-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExpandedTickets(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(t.ticketNumber)) next.delete(t.ticketNumber);
+                                                        else next.add(t.ticketNumber);
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100"
+                                            >
+                                                {expandedTickets.has(t.ticketNumber) ? '▼' : '▶'}
+                                            </button>
+                                            {t.ticketNumber}
+                                        </td>
+                                        <td className="px-4 py-3 font-mono text-xs">{formatDate(t.date)}</td>
+                                        <td className="px-4 py-3 font-medium text-slate-600">{t.projectName}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{t.items.length}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            {(() => {
+                                                const v = violations.find(v =>
+                                                    v.ticketNumbers?.includes(t.ticketNumber) ||
+                                                    v.description?.includes(t.ticketNumber)
+                                                );
+                                                if (!v) return <span className="text-slate-400 text-xs">-</span>;
+                                                if (v.status === ViolationStatus.COMPLETED) return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">已結案</span>;
+                                                return <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">辦理中</span>;
+                                            })()}
+                                        </td>
+                                        <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                                            {t.scanFileUrl ? (
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <a href={t.scanFileUrl} target="_blank" rel="noopener noreferrer"
+                                                        className="text-indigo-600 hover:text-indigo-800 text-xs flex items-center gap-1 font-medium"
+                                                        title={t.scanFileName}
+                                                    >
+                                                        <ExternalLink size={14} /> 檢視
+                                                    </a>
+                                                    <button
+                                                        onClick={() => handleUploadFineScan(t.ticketNumber)}
+                                                        className="text-slate-400 hover:text-amber-600 text-xs ml-1" title="重新上傳"
+                                                    >
+                                                        <Upload size={14} />
+                                                    </button>
+                                                </div>
+                                            ) : (
                                                 <button
                                                     onClick={() => handleUploadFineScan(t.ticketNumber)}
-                                                    className="text-slate-400 hover:text-amber-600 text-xs ml-1" title="重新上傳"
+                                                    className="text-slate-400 hover:text-indigo-600 flex items-center gap-1 text-xs mx-auto transition-colors"
                                                 >
-                                                    <Upload size={14} />
+                                                    <FileUp size={14} /> 上傳
                                                 </button>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); handleRevokeTicket(t.ticketNumber); }} className="p-1 px-2 border border-slate-200 text-slate-500 hover:text-orange-600 rounded text-xs transition-colors shadow-sm">撤銷</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEditTicket(t.ticketNumber); }} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteTicket(t.ticketNumber); }} className="p-1 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
                                             </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleUploadFineScan(t.ticketNumber)}
-                                                className="text-slate-400 hover:text-indigo-600 flex items-center gap-1 text-xs mx-auto transition-colors"
-                                            >
-                                                <FileUp size={14} /> 上傳
-                                            </button>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={(e) => { e.stopPropagation(); handleEditTicket(t.ticketNumber); }} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteTicket(t.ticketNumber); }} className="p-1 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                        </td>
+                                    </tr>
+                                    {expandedTickets.has(t.ticketNumber) && (
+                                        <tr className="bg-slate-50/50">
+                                            <td colSpan={8} className="px-8 py-4">
+                                                <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-100/50 text-slate-500 text-xs">
+                                                            <tr>
+                                                                <th className="px-4 py-2 font-medium text-left">違規項目</th>
+                                                                <th className="px-4 py-2 font-medium text-right">單價</th>
+                                                                <th className="px-4 py-2 font-medium text-right">件數</th>
+                                                                <th className="px-4 py-2 font-medium text-right">小計</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {t.items.map((item, i) => (
+                                                                <tr key={i}>
+                                                                    <td className="px-4 py-2 text-slate-600">{item.violationItem}</td>
+                                                                    <td className="px-4 py-2 text-right text-slate-500">{Number(item.unitPrice).toLocaleString()}</td>
+                                                                    <td className="px-4 py-2 text-right text-slate-500">{item.count}</td>
+                                                                    <td className="px-4 py-2 text-right font-medium text-slate-700">{Number(item.subtotal).toLocaleString()}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
                             ))}
-                            {tickets.length === 0 && (
-                                <tr><td colSpan={7} className="p-8 text-center text-slate-400">目前沒有資料，請點擊「新增罰單」建立第一筆資料。</td></tr>
+                            {tickets.filter(t => !t.isRevoked).length === 0 && (
+                                <tr><td colSpan={8} className="p-8 text-center text-slate-400">目前沒有資料，請點擊「新增罰單」建立第一筆資料。</td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
+
+                {/* Revoked Tickets Section */}
+                {
+                    tickets.filter(t => t.isRevoked).length > 0 && (
+                        <div className="mt-8 border-t border-red-100 bg-red-50/30">
+                            <div className="p-4 border-b border-red-100 flex justify-between items-center bg-red-50/50">
+                                <h3 className="font-bold text-red-700 text-sm">已撤銷之罰單</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-red-100/30 text-red-500 font-medium text-xs">
+                                        <tr>
+                                            <th className="px-4 py-2">罰單編號</th>
+                                            <th className="px-4 py-2">工程名稱</th>
+                                            <th className="px-4 py-2 text-right">金額</th>
+                                            <th className="px-4 py-2">撤銷人員</th>
+                                            <th className="px-4 py-2">撤銷時間</th>
+                                            <th className="px-4 py-2">撤銷原因</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-red-100/50">
+                                        {tickets.filter(t => t.isRevoked).map((t, idx) => (
+                                            <tr key={idx} className="hover:bg-red-50/50 transition-colors">
+                                                <td className="px-4 py-2 font-mono text-red-600 line-through opacity-70">{t.ticketNumber}</td>
+                                                <td className="px-4 py-2 text-slate-500">{t.projectName}</td>
+                                                <td className="px-4 py-2 text-right font-medium text-red-600 opacity-70">${t.totalAmount.toLocaleString()}</td>
+                                                <td className="px-4 py-2 text-slate-500">{t.revokedBy}</td>
+                                                <td className="px-4 py-2 text-slate-500 font-mono text-xs">{t.revokeDate}</td>
+                                                <td className="px-4 py-2 text-red-600 text-xs">{t.revokeReason}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )
+                }
             </div >
         );
     };

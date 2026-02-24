@@ -64,6 +64,10 @@ export interface Fine {
   allocation?: string;     // 忠哥辦理罰單分配
   scanFileName?: string;   // 罰單掃描檔名稱
   scanFileUrl?: string;    // 罰單掃描檔連結
+  isRevoked?: boolean;     // 是否撤銷
+  revokeReason?: string;   // 撤銷原因
+  revokedBy?: string;      // 撤銷人員
+  revokeDate?: string;     // 撤銷時間
 }
 
 export interface FineList {
@@ -103,6 +107,7 @@ export interface User {
   name: string;
   role: string;
   password?: string;
+  createdAt?: string;
 }
 
 // Keeping for backward compatibility if needed, but primarily using Project now

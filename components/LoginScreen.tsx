@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Lock, User, Link, Loader2 } from 'lucide-react';
-import { getApiUrl, setApiUrl, hasDefaultUrl, login, googleLogin } from '../services/apiService';
+import { ShieldCheck, Lock, User, Link, Loader2, Mail } from 'lucide-react';
+import { getApiUrl, setApiUrl, hasDefaultUrl, login, googleLogin, register } from '../services/apiService';
 
 declare global {
     interface Window {
@@ -21,10 +21,13 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+    const [isRegistering, setIsRegistering] = useState(false);
+    const [name, setName] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [apiUrl, setApiUrlState] = useState('');
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showUrlInput, setShowUrlInput] = useState(!hasDefaultUrl());
 
@@ -69,6 +72,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const handleGoogleCallback = async (response: any) => {
         setIsLoading(true);
         setError('');
+        setSuccessMessage('');
 
         try {
             const result = await googleLogin(response.credential);
@@ -87,6 +91,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setSuccessMessage('');
         setIsLoading(true);
 
         // 儲存 API URL
@@ -95,11 +100,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         }
 
         try {
-            const result = await login(username, password);
-            if (result.success && result.user) {
-                onLogin(true, result.user);
+            if (isRegistering) {
+                if (!name || !username || !password) {
+                    setError('請填寫所有欄位');
+                    setIsLoading(false);
+                    return;
+                }
+                const result = await register({ email: username, name, password });
+                if (result.success) {
+                    setSuccessMessage('申請成功！請等待管理員審核通過後再行登入。');
+                    setIsRegistering(false);
+                    setPassword('');
+                } else {
+                    setError(result.error || '申請失敗');
+                }
             } else {
-                setError(result.error || '帳號或密碼錯誤');
+                const result = await login(username, password);
+                if (result.success && result.user) {
+                    if (result.user.role === 'pending') {
+                        setError('您的帳號正在審核中，請稍候。');
+                    } else {
+                        onLogin(true, result.user);
+                    }
+                } else {
+                    setError(result.error || '帳號或密碼錯誤');
+                }
             }
         } catch (e) {
             setError('連線失敗，請檢查 API URL');
@@ -150,28 +175,45 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     )}
 
                     {/* Google Sign-In (Top) */}
-                    <div className="space-y-4">
-                        <div id="google-signin-btn" className="flex justify-center w-full"></div>
+                    {!isRegistering && (
+                        <div className="space-y-4">
+                            <div id="google-signin-btn" className="flex justify-center w-full"></div>
 
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-200"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="bg-white px-2 text-slate-400 uppercase tracking-wider text-xs">Or login with email</span>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="bg-white px-2 text-slate-400 uppercase tracking-wider text-xs">Or login with email</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="space-y-4">
+                        {isRegistering && (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none transition-all"
+                                        placeholder="真實姓名"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">帳號</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">{isRegistering ? 'Email (帳號)' : '帳號'}</label>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                                {isRegistering ? <Mail className="absolute left-3 top-3 w-5 h-5 text-slate-400" /> : <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />}
                                 <input
                                     type="text"
                                     className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none transition-all"
-                                    placeholder="請輸入帳號"
+                                    placeholder={isRegistering ? "user@example.com" : "請輸入帳號"}
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                 />
@@ -193,8 +235,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     </div>
 
                     {error && (
-                        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center font-medium">
+                        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center font-medium border border-red-100">
                             {error}
+                        </div>
+                    )}
+
+                    {successMessage && (
+                        <div className="p-3 bg-emerald-50 text-emerald-600 text-sm rounded-lg text-center font-medium border border-emerald-100">
+                            {successMessage}
                         </div>
                     )}
 
@@ -206,16 +254,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                登入中...
+                                處理中...
                             </>
                         ) : (
-                            '登入系統'
+                            isRegistering ? '提出申請' : '登入系統'
                         )}
                     </button>
 
-                    <p className="text-xs text-center text-slate-400 mt-4">
-                        預設帳號: admin / 密碼: admin123
-                    </p>
+                    <div className="flex flex-col gap-2 mt-4 text-center">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsRegistering(!isRegistering);
+                                setError('');
+                                setSuccessMessage('');
+                            }}
+                            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                            {isRegistering ? '返回登入' : '申請帳號'}
+                        </button>
+                        {!isRegistering && (
+                            <p className="text-xs text-slate-400">
+                                預設帳號: admin / 密碼: admin123
+                            </p>
+                        )}
+                    </div>
                 </form>
             </div>
         </div>

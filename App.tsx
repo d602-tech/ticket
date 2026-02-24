@@ -409,6 +409,7 @@ function App() {
             case 'admin': return { card: 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50', avatar: 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200', badge: 'bg-indigo-100 text-indigo-700 border-indigo-200', badgeLabel: '系統管理員', dot: 'bg-indigo-500' };
             case 'viewer': return { card: 'border-slate-200 bg-gradient-to-br from-slate-50 to-gray-50', avatar: 'bg-gradient-to-br from-slate-400 to-gray-500 shadow-slate-200', badge: 'bg-slate-100 text-slate-600 border-slate-200', badgeLabel: '觀看者', dot: 'bg-slate-400' };
             case 'fine_inputter': return { card: 'border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50', avatar: 'bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-200', badge: 'bg-orange-100 text-orange-700 border-orange-200', badgeLabel: '罰單輸入者', dot: 'bg-orange-500' };
+            case 'pending': return { card: 'border-yellow-200 bg-gradient-to-br from-yellow-50 to-amber-50', avatar: 'bg-gradient-to-br from-yellow-500 to-amber-600 shadow-yellow-200', badge: 'bg-yellow-100 text-yellow-700 border-yellow-200', badgeLabel: '待審核 (Pending)', dot: 'bg-yellow-500' };
             default: return { card: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50', avatar: 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', badgeLabel: '一般使用者', dot: 'bg-emerald-500' };
         }
     };
@@ -424,7 +425,7 @@ function App() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    {['admin', 'user', 'fine_inputter', 'viewer'].map(role => {
+                    {['pending', 'admin', 'user', 'fine_inputter', 'viewer'].map(role => {
                         const roleUsers = users.filter(u => u.role === role);
                         if (roleUsers.length === 0) return null;
                         const style = getRoleStyle(role);
@@ -455,6 +456,7 @@ function App() {
                                                             onChange={(e) => handleChangeUserRole(user, e.target.value)}
                                                             className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                                                         >
+                                                            {user.role === 'pending' && <option value="pending" disabled>待審核</option>}
                                                             <option value="admin">系統管理員</option>
                                                             <option value="user">一般使用者</option>
                                                             <option value="fine_inputter">罰單輸入者</option>

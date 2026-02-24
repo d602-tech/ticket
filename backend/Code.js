@@ -90,7 +90,11 @@ var HEADER_MAP = {
     'supervisor': '督導人',
     'allocation': '忠哥辦理罰單分配',
     'scanFileName': '罰單掃描檔名稱',
-    'scanFileUrl': '罰單掃描檔連結'
+    'scanFileUrl': '罰單掃描檔連結',
+    'isRevoked': '是否撤銷',
+    'revokeReason': '撤銷原因',
+    'revokedBy': '撤銷人員',
+    'revokeDate': '撤銷時間'
   },
   'FineList': {
     'seq': '序號',
@@ -135,6 +139,10 @@ function handleRequest(e) {
 
         case 'googleLogin':
           return jsonOutput(handleGoogleLogin(ss, data.credential));
+
+        case 'registerUser':
+          ensureSheetInitialized(ss, 'Users');
+          return jsonOutput(handleRegisterUser(ss, data));
 
         case 'getUsers':
           if (data.adminRole !== 'admin') {
@@ -467,6 +475,23 @@ function handleAddUser(ss, data) {
   users.push(newUser);
   saveData(ss, 'Users', users);
   return { success: true, message: '使用者已新增' };
+}
+
+function handleRegisterUser(ss, data) {
+  var users = loadData(ss, 'Users');
+  if (users.some(function (u) { return u.email === data.newUser.email; })) {
+    return { success: false, error: '該 Email 已被註冊' };
+  }
+  var newUser = {
+    email: data.newUser.email,
+    password: data.newUser.password,
+    name: data.newUser.name,
+    role: 'pending',
+    createdAt: Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss")
+  };
+  users.push(newUser);
+  saveData(ss, 'Users', users);
+  return { success: true, message: '註冊成功，請等待管理員審淮' };
 }
 
 function handleSendEmail(ss, data) {

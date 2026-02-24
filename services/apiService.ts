@@ -61,6 +61,18 @@ export const login = async (username: string, password: string): Promise<LoginRe
     }
 };
 
+export const register = async (newUser: { email: string; name: string; password?: string }): Promise<LoginResult> => {
+    try {
+        const result = await callGasApi({
+            action: 'registerUser',
+            newUser
+        });
+        return result;
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+};
+
 // Google 登入
 export const googleLogin = async (credential: string): Promise<LoginResult> => {
     try {
