@@ -92,6 +92,12 @@ function App() {
                     if (currentUserRole === 'admin') {
                         const usersData = await fetchUsers(currentUserRole);
                         setUsers(usersData);
+
+                        // Show alert for pending users
+                        const pendingCount = usersData.filter((u: User) => u.role === 'pending').length;
+                        if (pendingCount > 0) {
+                            setTimeout(() => alert(`提示：目前有 ${pendingCount} 名待審核帳號申請，請前往「帳號管理」進行開通作業。`), 500);
+                        }
                     }
                 } catch (e) {
                     console.error('Initialization failed:', e);
@@ -373,13 +379,25 @@ function App() {
     const handleChangeUserRole = async (user: User, newRole: string) => {
         setIsLoading(true);
         try {
-            const updatedUsers = users.map(u =>
-                u.email === user.email ? { ...u, role: newRole } : u
-            );
-            const result = await syncData(undefined, undefined, undefined, undefined, undefined, updatedUsers);
-            setUsers(result.users);
+            const response = await fetch(getApiUrl()!, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'updateUserRole',
+                    adminRole: currentUserRole,
+                    userEmail: user.email,
+                    userName: user.name,
+                    newRole: newRole
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                setUsers(result.users);
+            } else {
+                alert('更改權限失敗: ' + result.error);
+            }
         } catch (e) {
-            alert('更改權限失敗');
+            alert('更改權限發生錯誤');
         } finally {
             setIsLoading(false);
         }

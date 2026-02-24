@@ -202,6 +202,9 @@ function handleRequest(e) {
           ensureSheetInitialized(ss, 'Violations');
           return jsonOutput(handleUploadEvidence(ss, data));
 
+        case 'updateUserRole':
+          return jsonOutput(handleUpdateUserRole(ss, data));
+
         case 'sync':
           // Fallback for full sync
           initAllSheets(ss);
@@ -221,6 +224,40 @@ function handleRequest(e) {
   }
 }
 
+// ========== User Role Management Helper ==========
+function handleUpdateUserRole(ss, data) {
+  if (data.adminRole !== 'admin') {
+    return { success: false, error: '無權限' };
+  }
+
+  var users = loadData(ss, 'Users');
+  var userFound = false;
+  var wasPending = false;
+
+  users = users.map(function (u) {
+    if (u.email === data.userEmail) {
+      userFound = true;
+      if (u.role === 'pending' && data.newRole !== 'pending') {
+        wasPending = true;
+      }
+      u.role = data.newRole;
+    }
+    return u;
+  });
+
+  if (!userFound) {
+    return { success: false, error: '找不到該使用者' };
+  }
+
+  saveData(ss, 'Users', users);
+
+  if (wasPending) {
+    sendApprovalEmail(data.userEmail, data.userName);
+  }
+
+  return { success: true, users: users };
+}
+
 // ========== Incremental Update Helpers ==========
 
 function handleUpdateItem(ss, sheetName, item) {
@@ -234,11 +271,11 @@ function handleUpdateItem(ss, sheetName, item) {
 
   if (idColIndex === -1) return { success: false, error: 'ID column not found' };
 
-  var data = sheet.getDataRange().getValues();
+  var dataSheets = sheet.getDataRange().getValues();
   var rowIndex = -1;
 
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][idColIndex]) === String(item.id)) {
+  for (var i = 1; i < dataSheets.length; i++) {
+    if (String(dataSheets[i][idColIndex]) === String(item.id)) {
       rowIndex = i + 1;
       break;
     }
@@ -474,6 +511,12 @@ function handleAddUser(ss, data) {
   };
   users.push(newUser);
   saveData(ss, 'Users', users);
+
+  // Send email if it's an admin creating a user and they're active right away
+  if (newUser.role !== 'pending') {
+    sendApprovalEmail(newUser.email, newUser.name);
+  }
+
   return { success: true, message: '使用者已新增' };
 }
 
@@ -491,7 +534,68 @@ function handleRegisterUser(ss, data) {
   };
   users.push(newUser);
   saveData(ss, 'Users', users);
+
+  // Send email to admins
+  var adminEmails = users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.email; });
+  if (adminEmails.length > 0) {
+    var subject = "【廠安管理系統】新使用者註冊審核通知";
+    var htmlBody = "<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;'>" +
+      "<h2 style='color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 10px;'>新帳號註冊待審核</h2>" +
+      "<p>您好，系統管理員：</p>" +
+      "<p>有一名新使用者申請註冊廠安管理系統帳號，註冊資訊如下：</p>" +
+      "<ul style='background-color: #f8fafc; padding: 15px 30px; border-radius: 6px; list-style-type: none;'>" +
+      "<li><strong>姓名：</strong> " + newUser.name + "</li>" +
+      "<li><strong>信箱：</strong> " + newUser.email + "</li>" +
+      "<li><strong>申請時間：</strong> " + newUser.createdAt + "</li>" +
+      "</ul>" +
+      "<p>請登入系統進行審核作業。</p>" +
+      "<div style='margin-top: 30px; text-align: center; color: #64748b; font-size: 12px;'>" +
+      "<p>此為系統自動發送郵件，請勿直接回覆。</p>" +
+      "</div>" +
+      "</div>";
+
+    try {
+      MailApp.sendEmail({
+        to: adminEmails.join(','),
+        subject: subject,
+        htmlBody: htmlBody
+      });
+    } catch (e) {
+      Logger.log("發送管理員通知信失敗: " + e.message);
+    }
+  }
+
   return { success: true, message: '註冊成功，請等待管理員審淮' };
+}
+
+function sendApprovalEmail(userEmail, userName) {
+  var subject = "【廠安管理系統】您的帳號已開通";
+  var htmlBody = "<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>" +
+    "<div style='text-align: center; margin-bottom: 30px;'>" +
+    "<div style='background-color: #4f46e5; color: white; display: inline-block; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 18px; letter-spacing: 1px;'>廠安管理系統</div>" +
+    "</div>" +
+    "<h2 style='color: #1e293b; text-align: center; margin-bottom: 25px;'>🎉 帳號開通成功</h2>" +
+    "<p style='color: #475569; font-size: 16px; line-height: 1.6;'>您好，<strong>" + userName + "</strong>：</p>" +
+    "<p style='color: #475569; font-size: 16px; line-height: 1.6;'>感謝您的耐心等候，系統管理員已審核通過您的註冊申請。您現在可以登入並使用系統的完整功能了。</p>" +
+    "<div style='text-align: center; margin: 40px 0;'>" +
+    "<a href='https://d602-tech.github.io/ticket/' style='background-color: #4f46e5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);'>前往登入系統</a>" +
+    "</div>" +
+    "<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;' />" +
+    "<div style='text-align: center; color: #94a3b8; font-size: 13px;'>" +
+    "<p>此為系統自動發送郵件，請勿直接回覆。</p>" +
+    "<p>&copy; " + new Date().getFullYear() + " 廠安管理系統. All rights reserved.</p>" +
+    "</div>" +
+    "</div>";
+
+  try {
+    MailApp.sendEmail({
+      to: userEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+  } catch (e) {
+    Logger.log("發送開通信信箱失敗 (" + userEmail + "): " + e.message);
+  }
 }
 
 function handleSendEmail(ss, data) {

@@ -4,7 +4,7 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import { Fine, Project, FineList, Section, Violation, ViolationStatus } from '../types';
-import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle, ExternalLink, FileUp } from 'lucide-react';
+import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle, ExternalLink, FileUp, TrendingUp } from 'lucide-react';
 import { callGasApi } from '../services/apiService';
 import { syncData } from '../services/storageService';
 import { formatDate, addDays } from '../utils';
@@ -843,6 +843,51 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                         </p>
                     </div>
                 </div>
+
+                {/* Ranking Card for Viewers/Admins */}
+                {
+                    (role === 'viewer' || role === 'admin') && (
+                        <div className="bg-gradient-to-br from-indigo-50 via-white to-indigo-50/30 p-6 rounded-2xl shadow-sm border border-indigo-100 mb-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <TrendingUp className="text-indigo-600 w-5 h-5" />
+                                <h3 className="font-bold text-slate-800 text-lg">當月承攬商罰款排行榜 Top 5</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                {Object.entries(filteredFines.filter(f => {
+                                    const dStr = f.date || f.issueDate;
+                                    if (!dStr) return false;
+                                    const d = new Date(dStr);
+                                    return d >= thisMonthStart && !f.isRevoked;
+                                }).reduce((acc, curr) => {
+                                    const cName = curr.contractor || '未指定';
+                                    if (!acc[cName]) acc[cName] = { amount: 0, count: 0 };
+                                    acc[cName].amount += (Number(curr.subtotal) || 0);
+                                    acc[cName].count += 1;
+                                    return acc;
+                                }, {} as Record<string, { amount: number, count: number }>))
+                                    .sort(([, a], [, b]) => b.amount - a.amount)
+                                    .slice(0, 5)
+                                    .map(([name, data], idx) => (
+                                        <div key={name} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+                                            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 ${idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-amber-700' : 'bg-indigo-500'}`}></div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1 z-10 relative">
+                                                    <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shadow-sm ${idx === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600' : idx === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500' : idx === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-800' : 'bg-gradient-to-br from-indigo-400 to-indigo-600'}`}>{idx + 1}</span>
+                                                    <span className="font-bold text-slate-700 truncate text-sm" title={name}>{name}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-2 z-10 relative">本月累計: {data.count} 件</p>
+                                            </div>
+                                            <div className="mt-2 pt-2 border-t border-slate-50 z-10 relative">
+                                                <span className="text-lg font-bold text-red-600">${data.amount.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                {Object.keys(filteredFines).length === 0 && <div className="text-sm text-slate-500 col-span-full">本月目前無罰單數據</div>}
+                            </div>
+                        </div>
+                    )
+                }
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                         <h3 className="font-bold text-slate-700 mb-4">各工程罰款統計 (簡稱)</h3>
@@ -888,7 +933,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
         )
     };
 
