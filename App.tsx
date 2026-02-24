@@ -96,7 +96,11 @@ function App() {
                         // Show alert for pending users
                         const pendingCount = usersData.filter((u: User) => u.role === 'pending').length;
                         if (pendingCount > 0) {
-                            setTimeout(() => alert(`提示：目前有 ${pendingCount} 名待審核帳號申請，請前往「帳號管理」進行開通作業。`), 500);
+                            setTimeout(() => {
+                                if (window.confirm(`提示：目前有 ${pendingCount} 名待審核帳號申請，請前往「帳號管理」進行開通作業。\n是否立即前往？`)) {
+                                    setView('ACCOUNT_MANAGEMENT');
+                                }
+                            }, 500);
                         }
                     }
                 } catch (e) {
@@ -461,7 +465,7 @@ function App() {
                                                 <div>
                                                     <div className="flex justify-between items-start mb-3">
                                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${s.avatar}`}>
-                                                            {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+                                                            {user.name ? String(user.name).charAt(0).toUpperCase() : '?'}
                                                         </div>
                                                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${s.badge}`}>{s.badgeLabel}</span>
                                                     </div>

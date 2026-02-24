@@ -538,7 +538,7 @@ function handleRegisterUser(ss, data) {
   // Send email to admins
   var adminEmails = users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.email; });
   if (adminEmails.length > 0) {
-    var subject = "【廠安管理系統】新使用者註冊審核通知";
+    var subject = "【罰單暨違規講習管理系統】新使用者註冊審核通知";
     var htmlBody = "<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;'>" +
       "<h2 style='color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 10px;'>新帳號註冊待審核</h2>" +
       "<p>您好，系統管理員：</p>" +
@@ -549,6 +549,9 @@ function handleRegisterUser(ss, data) {
       "<li><strong>申請時間：</strong> " + newUser.createdAt + "</li>" +
       "</ul>" +
       "<p>請登入系統進行審核作業。</p>" +
+      "<div style='text-align: center; margin: 30px 0;'>" +
+      "<a href='https://d602-tech.github.io/ticket/' style='background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;'>前往系統審核</a>" +
+      "</div>" +
       "<div style='margin-top: 30px; text-align: center; color: #64748b; font-size: 12px;'>" +
       "<p>此為系統自動發送郵件，請勿直接回覆。</p>" +
       "</div>" +
