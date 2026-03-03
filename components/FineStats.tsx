@@ -4,7 +4,7 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import { Fine, Project, FineList, Section, Violation, ViolationStatus } from '../types';
-import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle, ExternalLink, FileUp, TrendingUp } from 'lucide-react';
+import { Plus, X, Trash2, Edit2, Loader2, Filter, Download, Upload, AlertTriangle, Users, Settings, ArrowRightCircle, ExternalLink, FileUp, TrendingUp, ArrowLeft } from 'lucide-react';
 import { callGasApi } from '../services/apiService';
 import { syncData } from '../services/storageService';
 import { formatDate, addDays } from '../utils';
@@ -960,7 +960,13 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                     {/* Ticket Header Inputs */}
                     <div className="border-b border-slate-100 p-4 bg-slate-50 rounded-t-xl">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-slate-700">罰單基本資料</h3>
+                            <div className="flex items-center gap-3">
+                                <button type="button" onClick={() => { setIsEditing(false); resetForm(); }} className="flex items-center gap-1.5 p-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg shadow-sm transition-colors" title="回到列表">
+                                    <ArrowLeft size={18} />
+                                    <span className="text-sm font-bold pr-1">回到列表</span>
+                                </button>
+                                <h3 className="text-lg font-bold text-slate-700 ml-2">罰單基本資料</h3>
+                            </div>
                             <div className="flex items-center gap-4">
                                 <div className="text-xl font-bold text-red-600">
                                     自計總額: ${calculatedTicketTotal.toLocaleString()}
@@ -1359,6 +1365,9 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                         <td className="px-4 py-3 text-right font-bold text-red-600">${t.totalAmount.toLocaleString()}</td>
                                         <td className="px-4 py-3 text-center">
                                             {(() => {
+                                                if (Number(t.totalAmount) < 10000) {
+                                                    return <span className="text-slate-500 px-2 py-1 rounded text-xs font-bold">無須辦理</span>;
+                                                }
                                                 const v = violations.find(v =>
                                                     v.ticketNumbers?.includes(t.ticketNumber) ||
                                                     v.description?.includes(t.ticketNumber)

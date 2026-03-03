@@ -54,7 +54,9 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
         ...initialData,
         // Ensure numbers/booleans are correctly set
         fineAmount: initialData.fineAmount || 0,
-        isMajorViolation: initialData.isMajorViolation || false
+        isMajorViolation: initialData.isMajorViolation || false,
+        fileName: initialData.fileName,
+        fileUrl: initialData.fileUrl
       });
     } else if (isOpen) {
       // Reset for new entry
@@ -119,10 +121,9 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     else if (fine >= 10000) {
       parts = ['違規當事人', '工作場所負責人', '工安人員', '領班'];
     }
-    // 4. 罰款 < 1萬 (與累計有關，此處簡化為基本人員，可手動修改)
+    // 4. 罰款 < 1萬
     else {
-      // 預設基本人員，提示使用者若為累計需自行調整
-      parts = ['違規當事人', '領班'];
+      parts = ['無須辦理'];
     }
 
     setFormData(prev => ({
@@ -130,6 +131,44 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       participants: parts.join('、')
     }));
   }, [formData.fineAmount, formData.isMajorViolation]);
+
+  // 自動帶入掃描檔邏輯
+  useEffect(() => {
+    if (file) return;
+
+    let foundFile = false;
+    let autoFileName = '';
+    let autoFileUrl = '';
+
+    if (formData.ticketNumbers) {
+      const selectedTickets = formData.ticketNumbers.split(',');
+      for (const ticketNum of selectedTickets) {
+        const ticketFile = fines.find(f => f.ticketNumber === ticketNum && f.scanFileUrl);
+        if (ticketFile) {
+          foundFile = true;
+          autoFileName = ticketFile.scanFileName || '';
+          autoFileUrl = ticketFile.scanFileUrl || '';
+          break;
+        }
+      }
+    }
+
+    setFormData(prev => {
+      if (foundFile) {
+        return {
+          ...prev,
+          fileName: autoFileName,
+          fileUrl: autoFileUrl
+        };
+      } else {
+        return {
+          ...prev,
+          fileName: initialData?.fileName,
+          fileUrl: initialData?.fileUrl
+        };
+      }
+    });
+  }, [formData.ticketNumbers, fines, file, initialData]);
 
   // 完成日期連動狀態
   useEffect(() => {
@@ -197,8 +236,8 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       lectureDeadline: formData.lectureDeadline,
       description: formData.description || '',
       status: formData.status || ViolationStatus.PENDING,
-      fileName: file ? file.name : (initialData?.fileName), // Preserve old filename if not replaced
-      fileUrl: initialData?.fileUrl || '',
+      fileName: file ? file.name : (formData.fileName || initialData?.fileName), // Preserve old filename if not replaced
+      fileUrl: formData.fileUrl || initialData?.fileUrl || '',
       fineAmount: Number(formData.fineAmount) || 0,
       isMajorViolation: formData.isMajorViolation || false,
       participants: formData.participants || '',
@@ -316,7 +355,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Violation Date */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">違規日期</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">發文日期</label>
               <div className="relative">
                 <input
                   type="date"
@@ -470,7 +509,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
             >
               <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${isDragging
                 ? 'border-indigo-500 bg-indigo-100 scale-105'
-                : file
+                : (file || formData.fileName)
                   ? 'border-indigo-300 bg-indigo-50'
                   : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
                 }`}>
@@ -479,6 +518,14 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
                     <div className="flex items-center gap-2">
                       <FileText className="w-6 h-6 text-indigo-600" />
                       <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{file.name}</p>
+                    </div>
+                  ) : formData.fileName ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-indigo-600" />
+                      <div className="flex flex-col items-center">
+                        <p className="text-sm text-indigo-700 font-medium truncate max-w-[200px]">{formData.fileName}</p>
+                        <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full mt-1 font-bold">已由系統自動帶入</span>
+                      </div>
                     </div>
                   ) : isDragging ? (
                     <>
