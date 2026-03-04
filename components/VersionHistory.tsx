@@ -9,6 +9,14 @@ interface Version {
 
 const versions: Version[] = [
     {
+        version: 'v1.8',
+        date: '2026-03-04',
+        features: [
+            '[新增] 罰款統計功能增強：可依專案、承攬商、年份進行多維度交叉篩選與查詢',
+            '[新增] 於統計圖表增加歷年罰款趨勢概覽，並可篩選工程歷年與總罰款'
+        ]
+    },
+    {
         version: 'v1.7',
         date: '2026-03-03',
         features: [

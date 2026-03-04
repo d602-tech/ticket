@@ -47,6 +47,9 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ show: boolean; stage: string; fileName?: string }>({ show: false, stage: '' });
     const [statsTimeFilter, setStatsTimeFilter] = useState<'ALL' | 'LAST_MONTH' | 'THIS_MONTH' | 'THIS_YEAR'>('ALL');
+    const [statsYearFilter, setStatsYearFilter] = useState<string>('ALL');
+    const [statsProjectFilter, setStatsProjectFilter] = useState<string>('ALL');
+    const [statsContractorFilter, setStatsContractorFilter] = useState<string>('ALL');
 
     // Ticket State
     const [editTicketNumber, setEditTicketNumber] = useState<string | null>(null); // Track if editing existing ticket
@@ -759,13 +762,25 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
         const thisYearStart = new Date(now.getFullYear(), 0, 1);
 
+        const availableYears = Array.from(new Set(fines.map(f => {
+            const d = f.date || f.issueDate;
+            return d ? new Date(d).getFullYear().toString() : '';
+        }).filter(y => y && !isNaN(Number(y))))).sort((a, b) => b.localeCompare(a));
+        const availableProjects = Array.from(new Set(fines.map(f => f.projectName).filter(Boolean))).sort();
+        const availableContractors = Array.from(new Set(fines.map(f => f.contractor).filter(Boolean))).sort();
+
         const filteredFines = fines.filter(f => {
-            if (statsTimeFilter === 'ALL') return true;
+            if (statsProjectFilter !== 'ALL' && f.projectName !== statsProjectFilter) return false;
+            if (statsContractorFilter !== 'ALL' && f.contractor !== statsContractorFilter) return false;
+
             const dStr = f.date || f.issueDate;
             if (!dStr) return false;
             const d = new Date(dStr);
             if (isNaN(d.getTime())) return false;
 
+            if (statsYearFilter !== 'ALL' && String(d.getFullYear()) !== statsYearFilter) return false;
+
+            if (statsTimeFilter === 'ALL') return true;
             if (statsTimeFilter === 'THIS_MONTH') return d >= thisMonthStart;
             if (statsTimeFilter === 'LAST_MONTH') return d >= lastMonthStart && d <= lastMonthEnd;
             if (statsTimeFilter === 'THIS_YEAR') return d >= thisYearStart;
@@ -810,13 +825,60 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([name, value]) => ({ name, value }));
 
+        // 4. By Year (歷年概覽)
+        const finesByYear = filteredFines.reduce((acc, curr) => {
+            const dateStr = curr.date || curr.issueDate;
+            const d = dateStr ? new Date(dateStr) : new Date();
+            if (isNaN(d.getTime())) return acc;
+            const key = String(d.getFullYear());
+            if (!acc[key]) acc[key] = { amount: 0, count: 0 };
+            acc[key].amount += (Number(curr.subtotal) || 0);
+            acc[key].count += 1;
+            return acc;
+        }, {} as Record<string, { amount: number, count: number }>);
+
+        const yearData = Object.entries(finesByYear)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([name, data]) => ({ name, value: data.amount, count: data.count }));
+
         return (
             <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
-                    <button onClick={() => setStatsTimeFilter('ALL')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'ALL' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>全部</button>
-                    <button onClick={() => setStatsTimeFilter('THIS_YEAR')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_YEAR' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>今年</button>
-                    <button onClick={() => setStatsTimeFilter('LAST_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'LAST_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>上個月</button>
-                    <button onClick={() => setStatsTimeFilter('THIS_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>本月</button>
+                <div className="flex flex-wrap gap-3">
+                    <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-fit">
+                        <button onClick={() => setStatsTimeFilter('ALL')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'ALL' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>全部時間</button>
+                        <button onClick={() => setStatsTimeFilter('THIS_YEAR')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_YEAR' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>今年</button>
+                        <button onClick={() => setStatsTimeFilter('LAST_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'LAST_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>上個月</button>
+                        <button onClick={() => setStatsTimeFilter('THIS_MONTH')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${statsTimeFilter === 'THIS_MONTH' ? 'bg-slate-800 text-white shadow' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}>本月</button>
+                    </div>
+
+                    <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm gap-2 text-sm">
+                        <select
+                            className="bg-transparent border-none outline-none text-slate-700 font-medium px-2 py-1.5 cursor-pointer max-w-[150px]"
+                            value={statsYearFilter}
+                            onChange={e => setStatsYearFilter(e.target.value)}
+                        >
+                            <option value="ALL">全部年份</option>
+                            {availableYears.map(y => <option key={y} value={y}>{y} 年</option>)}
+                        </select>
+                        <div className="w-px bg-slate-200 my-1"></div>
+                        <select
+                            className="bg-transparent border-none outline-none text-slate-700 font-medium px-2 py-1.5 cursor-pointer max-w-[200px]"
+                            value={statsProjectFilter}
+                            onChange={e => setStatsProjectFilter(e.target.value)}
+                        >
+                            <option value="ALL">全部工程</option>
+                            {availableProjects.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <div className="w-px bg-slate-200 my-1"></div>
+                        <select
+                            className="bg-transparent border-none outline-none text-slate-700 font-medium px-2 py-1.5 cursor-pointer max-w-[200px]"
+                            value={statsContractorFilter}
+                            onChange={e => setStatsContractorFilter(e.target.value)}
+                        >
+                            <option value="ALL">全部廠商</option>
+                            {availableContractors.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -893,16 +955,60 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                             </div>
                                         </div>
                                     ))}
-                                {Object.keys(filteredFines).length === 0 && (
-                                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white/50 rounded-xl border border-dashed border-slate-200">
-                                        <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
-                                        <p className="text-sm font-medium">本月目前無任何罰單數據</p>
-                                    </div>
-                                )}
+                                {Object.keys(filteredFines.filter(f => {
+                                    const dStr = f.date || f.issueDate;
+                                    if (!dStr) return false;
+                                    const d = new Date(dStr);
+                                    return d >= thisMonthStart && !f.isRevoked;
+                                })).length === 0 && (
+                                        <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white/50 rounded-xl border border-dashed border-slate-200">
+                                            <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
+                                            <p className="text-sm font-medium">本月目前無任何罰單數據</p>
+                                        </div>
+                                    )}
                             </div>
                         </div>
                     )
                 }
+
+                {/* Yearly Trend Chart */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
+                    <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                        <TrendingUp size={20} className="text-indigo-500" />
+                        歷年罰款趨勢總覽
+                    </h3>
+                    {yearData.length > 0 ? (
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={yearData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" tickFormatter={(v) => `${v}年`} />
+                                    <YAxis yAxisId="left" />
+                                    <YAxis yAxisId="right" orientation="right" />
+                                    <Tooltip
+                                        formatter={(value, name) => [
+                                            name === '金額' ? `$${Number(value).toLocaleString()}` : `${value} 件`,
+                                            name
+                                        ]}
+                                        labelFormatter={(label) => `${label} 年度`}
+                                    />
+                                    <Legend />
+                                    <Bar yAxisId="left" dataKey="value" fill="#8884d8" name="金額" radius={[4, 4, 0, 0]}>
+                                        {yearData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                    <Bar yAxisId="right" dataKey="count" fill="#82ca9d" name="開單件數" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="text-center text-slate-400 py-10 flex flex-col items-center">
+                            <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
+                            無歷年數據，請調整篩選條件
+                        </div>
+                    )}
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
