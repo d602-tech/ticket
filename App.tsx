@@ -142,7 +142,7 @@ function App() {
     };
 
     // Incremental Updates: Violation
-    const handleSaveViolation = async (newViolation: Violation, fileData?: { name: string, type: string, base64: string }) => {
+    const handleSaveViolation = async (newViolation: Violation, fileData?: { name: string, type: string, base64: string }, scanFileData?: { name: string, type: string, base64: string }) => {
         const project = projects.find(p => p.name === newViolation.projectName);
         const projectInfo = project ? {
             sequence: project.sequence,
@@ -151,7 +151,28 @@ function App() {
 
         setIsLoading(true);
         try {
+            // First save violation and the primary evidence (fileData)
             const res = await saveViolation(newViolation, fileData, projectInfo);
+
+            // If scanFileData is provided, upload it as well
+            if (res.success && res.violation && scanFileData) {
+                await fetch(getApiUrl()!, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'uploadScanFile',
+                        violationId: res.violation.id,
+                        fileData: scanFileData.base64,
+                        fileName: scanFileData.name,
+                        mimeType: scanFileData.type
+                    })
+                });
+                // Note: the backend 'uploadScanFile' updates the row and returns new URLs, 
+                // We should ideally fetch the updated violation or update the local state.
+                // For simplicity, we can do a quick reload or just let it be if the user refreshes.
+                // We'll update the local object manually for immediate feedback.
+                res.violation.scanFileName = scanFileData.name;
+            }
+
             if (res.success && res.violation) {
                 setViolations(prev => {
                     const idx = prev.findIndex(v => v.id === res.violation!.id);
@@ -716,10 +737,14 @@ function App() {
                                         <div className="font-medium text-slate-700 truncate">{project.coordinatorName || '-'}</div>
                                     </div>
                                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Hammer size={12} /> 課長</div>
+                                        <div className="font-medium text-slate-700 truncate">{project.sectionChiefName || '-'}</div>
+                                    </div>
+                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                                         <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Hammer size={12} /> 部門主管</div>
                                         <div className="font-medium text-slate-700 truncate">{project.managerName || '-'}</div>
                                     </div>
-                                    <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                                         <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Briefcase size={12} /> 工程簡稱</div>
                                         <div className="font-medium text-slate-700 truncate">{project.abbreviation || '-'}</div>
                                     </div>
@@ -762,13 +787,17 @@ function App() {
                                         value={editingProject.hostTeam || ''}
                                         onChange={e => {
                                             const team = e.target.value;
-                                            // Find manager from sections
+                                            // Auto-find default members
                                             const manager = sections.find(s => s.hostTeam === team && s.title?.includes('經理'));
+                                            const chief = sections.find(s => s.hostTeam === team && s.title?.includes('課長'));
+
                                             setEditingProject({
                                                 ...editingProject,
                                                 hostTeam: team,
-                                                managerName: manager?.name || editingProject.managerName,
-                                                managerEmail: manager?.email || editingProject.managerEmail
+                                                managerName: manager?.name || '',
+                                                managerEmail: manager?.email || '',
+                                                sectionChiefName: chief?.name || '',
+                                                sectionChiefEmail: chief?.email || ''
                                             });
                                         }}
                                     >
@@ -780,14 +809,77 @@ function App() {
                             <div><label className="block text-sm font-medium text-slate-700 mb-1">工程名稱</label><input type="text" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.name || ''} onChange={e => setEditingProject({ ...editingProject, name: e.target.value })} /></div>
                             <div><label className="block text-sm font-medium text-slate-700 mb-1">承攬商名稱</label><input type="text" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.contractor || ''} onChange={e => setEditingProject({ ...editingProject, contractor: e.target.value })} /></div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium text-slate-700 mb-1">承辦人員姓名</label><input type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.coordinatorName || ''} onChange={e => setEditingProject({ ...editingProject, coordinatorName: e.target.value })} placeholder="(可留空)" /></div>
-                                <div><label className="block text-sm font-medium text-slate-700 mb-1">承辦人員信箱</label><input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.coordinatorEmail || ''} onChange={e => setEditingProject({ ...editingProject, coordinatorEmail: e.target.value })} placeholder="(可留空)" /></div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium text-slate-700 mb-1">部門主管姓名</label><input type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.managerName || ''} onChange={e => setEditingProject({ ...editingProject, managerName: e.target.value })} /></div>
-                                <div><label className="block text-sm font-medium text-slate-700 mb-1">部門主管信箱</label><input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.managerEmail || ''} onChange={e => setEditingProject({ ...editingProject, managerEmail: e.target.value })} /></div>
-                            </div>
+                            {/* Personnel Selection based on hostTeam */}
+                            {(() => {
+                                const teamMembers = sections.filter(s => s.hostTeam === editingProject.hostTeam) || [];
+                                return (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">承辦人員姓名</label>
+                                                <select
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                                    value={editingProject.coordinatorName || ''}
+                                                    onChange={e => {
+                                                        const member = teamMembers.find(m => m.name === e.target.value);
+                                                        setEditingProject({ ...editingProject, coordinatorName: e.target.value, coordinatorEmail: member?.email || '' });
+                                                    }}
+                                                >
+                                                    <option value="">請選擇承辦人...</option>
+                                                    {teamMembers.map(m => <option key={m.name} value={m.name}>{m.name} {m.title ? `(${m.title})` : ''}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">承辦人員信箱</label>
+                                                <input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.coordinatorEmail || ''} onChange={e => setEditingProject({ ...editingProject, coordinatorEmail: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">課長姓名</label>
+                                                <select
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                                    value={editingProject.sectionChiefName || ''}
+                                                    onChange={e => {
+                                                        const member = teamMembers.find(m => m.name === e.target.value);
+                                                        setEditingProject({ ...editingProject, sectionChiefName: e.target.value, sectionChiefEmail: member?.email || '' });
+                                                    }}
+                                                >
+                                                    <option value="">請選擇課長...</option>
+                                                    {teamMembers.map(m => <option key={m.name} value={m.name}>{m.name} {m.title ? `(${m.title})` : ''}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">課長信箱</label>
+                                                <input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.sectionChiefEmail || ''} onChange={e => setEditingProject({ ...editingProject, sectionChiefEmail: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">部門主管/經理姓名</label>
+                                                <select
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                                    value={editingProject.managerName || ''}
+                                                    onChange={e => {
+                                                        const member = teamMembers.find(m => m.name === e.target.value);
+                                                        setEditingProject({ ...editingProject, managerName: e.target.value, managerEmail: member?.email || '' });
+                                                    }}
+                                                >
+                                                    <option value="">請選擇部門主管...</option>
+                                                    {teamMembers.map(m => <option key={m.name} value={m.name}>{m.name} {m.title ? `(${m.title})` : ''}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">部門主管信箱</label>
+                                                <input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" value={editingProject.managerEmail || ''} onChange={e => setEditingProject({ ...editingProject, managerEmail: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+
 
                             <div className="pt-4 flex justify-end gap-3">
                                 <button type="button" onClick={() => setProjectFormOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">取消</button>

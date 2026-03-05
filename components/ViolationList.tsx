@@ -264,6 +264,28 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                                     {violation.fileName} (未上傳)
                                                 </div>
                                             ) : null}
+                                            {/* 陳核單顯示 */}
+                                            {violation.scanFileUrl ? (
+                                                <a
+                                                    href={violation.scanFileUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center gap-1 mt-1 text-xs text-green-600 cursor-pointer hover:underline"
+                                                >
+                                                    <Download size={12} />
+                                                    查看陳核掃描 ({violation.scanFileName || '簽辦單附件'})
+                                                </a>
+                                            ) : violation.scanFileName ? (
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-green-400">
+                                                    <FileText size={12} />
+                                                    {violation.scanFileName} (處理中/未完成上傳)
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+                                                    <FileText size={12} />
+                                                    無陳核掃描檔
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-slate-600 dark:text-slate-300">
@@ -285,16 +307,30 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span
-                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' :
-                                                    violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
-                                                        violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' :
-                                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
-                                                    }`}
-                                            >
-                                                {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                                                {getStatusLabel(violation.status)}
-                                            </span>
+                                            <div className="flex gap-2 mb-3">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400' :
+                                                    violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400' :
+                                                        violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400' :
+                                                            'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400'
+                                                    }`}>
+                                                    {violation.status === ViolationStatus.COMPLETED ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                                                    {getStatusLabel(violation.status)}
+                                                </span>
+                                                {violation.emailCount ? (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-blue-100/50 text-blue-600 border border-blue-100">
+                                                        <Mail size={10} className="mr-1" /> 已寄信 ({violation.emailCount})
+                                                    </span>
+                                                ) : null}
+                                                {violation.scanFileUrl ? (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-green-100/50 text-green-600 border border-green-200">
+                                                        <FileText size={10} className="mr-1" /> 陳核單已上傳
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100/50 text-slate-500 border border-slate-200">
+                                                        <FileText size={10} className="mr-1" /> 尚未上傳陳核單
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -365,6 +401,6 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                     </tbody>
                 </table>
             </div>
-        </div>
+        </div >
     );
 };

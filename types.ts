@@ -100,6 +100,8 @@ export interface Project {
   // 主管相關欄位
   managerName?: string;    // 部門主管姓名
   managerEmail?: string;   // 部門主管 Email
+  sectionChiefName?: string;  // 課長姓名 (New)
+  sectionChiefEmail?: string; // 課長信箱 (New)
 }
 
 export interface User {

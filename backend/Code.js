@@ -48,7 +48,9 @@ var HEADER_MAP = {
     'coordinatorEmail': '承辦信箱',
     'hostTeam': '主辦工作隊',
     'managerName': '部門主管',
-    'managerEmail': '主管信箱'
+    'managerEmail': '主管信箱',
+    'sectionChiefName': '課長姓名',
+    'sectionChiefEmail': '課長信箱'
   },
   'Users': {
     'email': '帳號(Email)',

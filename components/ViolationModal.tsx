@@ -7,7 +7,7 @@ import { COMMON_VIOLATIONS } from '../services/storageService';
 interface ViolationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (violation: Violation, fileData?: { name: string, type: string, base64: string }) => void;
+  onSave: (violation: Violation, fileData?: { name: string, type: string, base64: string }, scanFileData?: { name: string, type: string, base64: string }) => void;
   projects: Project[];
   fines: Fine[];
   initialData?: Violation | null;
@@ -44,8 +44,10 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     ticketNumbers: ''
   });
   const [file, setFile] = useState<File | null>(null);
+  const [scanFile, setScanFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingScan, setIsDraggingScan] = useState(false);
 
   // Initialize form with data when modal opens
   useEffect(() => {
@@ -92,6 +94,25 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     const droppedFile = e.dataTransfer.files?.[0];
     if (droppedFile && (droppedFile.type.startsWith('image/') || droppedFile.type === 'application/pdf')) {
       setFile(droppedFile);
+    }
+  };
+
+  const handleScanDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingScan(true);
+  };
+
+  const handleScanDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingScan(false);
+  };
+
+  const handleScanDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingScan(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && (droppedFile.type.startsWith('image/') || droppedFile.type === 'application/pdf')) {
+      setScanFile(droppedFile);
     }
   };
 
@@ -202,6 +223,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
     setIsProcessing(true);
 
     let filePayload = undefined;
+    let scanFilePayload = undefined;
 
     // 如果有檔案，轉為 Base64
     if (file) {
@@ -212,7 +234,6 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = error => reject(error);
         });
-        // 移除 data:image/png;base64, 前綴
         const base64Content = base64.split(',')[1];
 
         filePayload = {
@@ -222,7 +243,30 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
         };
       } catch (error) {
         console.error("File processing failed", error);
-        alert("檔案處理失敗，請重試");
+        alert("罰單檔案處理失敗，請重試");
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    if (scanFile) {
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(scanFile);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+        const base64Content = base64.split(',')[1];
+
+        scanFilePayload = {
+          name: scanFile.name,
+          type: scanFile.type,
+          base64: base64Content
+        };
+      } catch (error) {
+        console.error("Scan File processing failed", error);
+        alert("陳核掃描檔處理失敗，請重試");
         setIsProcessing(false);
         return;
       }
@@ -245,7 +289,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       ticketNumbers: formData.ticketNumbers || '',
       // Preserve other fields
       documentUrl: initialData?.documentUrl,
-      scanFileName: initialData?.scanFileName,
+      scanFileName: scanFile ? scanFile.name : initialData?.scanFileName, // Update if newly uploaded
       scanFileUrl: initialData?.scanFileUrl,
       emailCount: initialData?.emailCount,
       firstNotifyDate: initialData?.firstNotifyDate,
@@ -253,7 +297,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
       scanFileHistory: initialData?.scanFileHistory
     };
 
-    onSave(newViolation, filePayload);
+    onSave(newViolation, filePayload, scanFilePayload);
     setIsProcessing(false);
     onClose();
   };
@@ -540,6 +584,52 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({ isOpen, onClose,
                   )}
                 </div>
                 <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              </label>
+            </div>
+          </div>
+
+          {/* Verification Scan File Upload with Drag & Drop */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">上傳陳核後簽辦單 (掃描檔) - 可拖拉上傳</label>
+            <div
+              className="flex items-center justify-center w-full"
+              onDragOver={handleScanDragOver}
+              onDragLeave={handleScanDragLeave}
+              onDrop={handleScanDrop}
+            >
+              <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${isDraggingScan
+                ? 'border-green-500 bg-green-100 scale-105'
+                : (scanFile || formData.scanFileName)
+                  ? 'border-green-300 bg-green-50'
+                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                }`}>
+                <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                  {scanFile ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-green-600" />
+                      <p className="text-sm text-green-700 font-medium truncate max-w-[200px]">{scanFile.name}</p>
+                    </div>
+                  ) : formData.scanFileName ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-green-600" />
+                      <div className="flex flex-col items-center">
+                        <p className="text-sm text-green-700 font-medium truncate max-w-[200px]">{formData.scanFileName}</p>
+                        <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full mt-1 font-bold">已上傳舊檔</span>
+                      </div>
+                    </div>
+                  ) : isDraggingScan ? (
+                    <>
+                      <Upload className="w-8 h-8 text-green-500 mb-1 animate-bounce" />
+                      <p className="text-sm text-green-600 font-medium">放開以上傳陳核檔案</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-6 h-6 text-slate-400 mb-1" />
+                      <p className="text-xs text-slate-500">點擊或拖拉「已陳核」檔案至此</p>
+                    </>
+                  )}
+                </div>
+                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => setScanFile(e.target.files?.[0] || null)} />
               </label>
             </div>
           </div>
