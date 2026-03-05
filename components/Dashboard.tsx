@@ -17,9 +17,10 @@ interface DashboardProps {
     violations: Violation[];
     projects: Project[];
     fines: Fine[];
+    onEditViolation?: (v: Violation) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects, fines }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects, fines, onEditViolation }) => {
     // State for dashboard controls
     const [selectedMonthOffset, setSelectedMonthOffset] = useState(0); // Viewer Mode
     const [viewerFilterText, setViewerFilterText] = useState(''); // Viewer Mode Filter
@@ -568,7 +569,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={chartData.teamChartData} margin={{ top: 10, right: -10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={document.documentElement.classList.contains('dark') ? 0.05 : 1} />
-                                <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
+                                <XAxis dataKey="name" tickFormatter={(v) => v.replace('工作隊', '')} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
                                 <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                 <Tooltip
@@ -596,7 +597,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                 <div className="bg-white dark:bg-[#1E2024] p-8 rounded-[32px] shadow-md shadow-indigo-900/5 dark:shadow-none border border-transparent dark:border-white/[0.02]">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件分佈統計</h3>
+                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">案件分佈統計 <span className="text-sm font-semibold text-indigo-500 ml-1">{dashboardYear} 年度</span></h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">累積罰款與案件佔比總覽</p>
                         </div>
                         {/* Segmented Toggles */}
@@ -718,45 +719,78 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                             </div>
                         </div>
                         <div className="p-6">
-                            <div className="relative border-l-2 border-slate-100 dark:border-[#2B2F36] ml-6 space-y-6 pb-4">
-                                {violations.slice(0, 5).map((v, i) => (
-                                    <div key={v.id} className="relative pl-8 group">
-                                        {/* Timeline Dot */}
-                                        <div className={`absolute -left-[11px] top-2 w-5 h-5 rounded-full border-4 border-white dark:border-[#1E2024] shadow-sm z-10 ${v.status === ViolationStatus.COMPLETED ? 'bg-emerald-500' : v.status === ViolationStatus.PENDING ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
-
-                                        <div className="bg-slate-50 dark:bg-[#2B2F36] p-6 rounded-[24px] border border-transparent dark:border-white/[0.02] shadow-sm hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 group-hover:-translate-y-1 cursor-pointer">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-bold text-slate-800 dark:text-white text-lg">{v.contractorName}</span>
-                                                    <span className="bg-white dark:bg-[#1E2024] px-2.5 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-white/[0.02] line-clamp-1 w-fit max-w-[200px] md:max-w-xs">{v.projectName}</span>
+                            {violations.length === 0 ? (
+                                <div className="py-8 text-slate-400 flex flex-col items-center gap-3">
+                                    <div className="p-4 bg-slate-50 dark:bg-[#2B2F36] rounded-2xl shadow-sm">
+                                        <FileWarning size={32} />
+                                    </div>
+                                    <p className="font-bold">目前無違規紀錄</p>
+                                </div>
+                            ) : (() => {
+                                const pending = violations.filter(v => v.status !== ViolationStatus.COMPLETED).slice(0, 5);
+                                const completed = violations.filter(v => v.status === ViolationStatus.COMPLETED).slice(0, 3);
+                                return (
+                                    <>
+                                        {/* Pending / In-Progress */}
+                                        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>未完成 ({pending.length})
+                                        </div>
+                                        <div className="relative border-l-2 border-amber-200 dark:border-amber-900/50 ml-4 space-y-4 pb-4">
+                                            {pending.length === 0 && (
+                                                <div className="pl-6 py-3 text-sm text-emerald-600 font-semibold">🎉 目前無未完成案件！</div>
+                                            )}
+                                            {pending.map((v) => (
+                                                <div key={v.id} className="relative pl-8 group">
+                                                    <div className={`absolute -left-[9px] top-2 w-4 h-4 rounded-full border-2 border-white dark:border-[#1E2024] shadow-sm z-10 bg-amber-400`}></div>
+                                                    <div
+                                                        className="bg-amber-50/60 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                                                        onClick={() => onEditViolation?.(v)}
+                                                        title="點擊進入編輯"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-bold text-slate-800 dark:text-white">{v.contractorName}</span>
+                                                                <span className="text-xs text-slate-500 bg-white dark:bg-[#1E2024] px-2 py-0.5 rounded-lg border border-slate-100 dark:border-white/5 w-fit">{v.projectName}</span>
+                                                            </div>
+                                                            <span className={`flex-shrink-0 text-[11px] font-black px-2.5 py-1 rounded-xl ${v.status === ViolationStatus.PENDING ? 'bg-amber-100 text-amber-800' :
+                                                                    v.status === ViolationStatus.NOTIFIED ? 'bg-blue-100 text-blue-800' :
+                                                                        'bg-purple-100 text-purple-800'
+                                                                }`}>{getStatusLabel(v.status)}</span>
+                                                        </div>
+                                                        <div className="text-xs text-orange-700 dark:text-orange-300 font-semibold flex items-center gap-1 mt-1">
+                                                            <Clock size={12} /> 違規日期：{v.violationDate} ｜ 點擊開啟編輯
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[11px] font-black tracking-widest uppercase shadow-sm ${v.status === ViolationStatus.COMPLETED
-                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
-                                                    : v.status === ViolationStatus.PENDING
-                                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
-                                                        : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300'
-                                                    }`}>
-                                                    {getStatusLabel(v.status)}
-                                                </span>
-                                            </div>
-                                            <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
-                                                {v.description || '無詳細說明'}
-                                            </div>
-                                            <div className="text-xs text-slate-400 dark:text-slate-500 font-bold flex items-center gap-1.5 bg-white dark:bg-[#1E2024] px-3 py-1.5 rounded-xl block w-fit shadow-sm">
-                                                <Clock size={14} /> 違規日期: {v.violationDate}
-                                            </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
-                                {violations.length === 0 && (
-                                    <div className="pl-8 py-8 text-slate-400 flex flex-col items-center gap-3">
-                                        <div className="p-4 bg-slate-50 dark:bg-[#2B2F36] rounded-2xl shadow-sm">
-                                            <FileWarning size={32} />
+
+                                        {/* Divider */}
+                                        <div className="my-6 border-t-2 border-dashed border-slate-200 dark:border-white/10 flex items-center gap-3">
+                                            <span className="text-xs font-semibold text-slate-400 bg-white dark:bg-[#1E2024] px-2 -mt-px">已完成</span>
                                         </div>
-                                        <p className="font-bold">目前無違規紀錄</p>
-                                    </div>
-                                )}
-                            </div>
+
+                                        {/* Completed */}
+                                        <div className="relative border-l-2 border-emerald-200 dark:border-emerald-900/50 ml-4 space-y-4">
+                                            {completed.map((v) => (
+                                                <div key={v.id} className="relative pl-8">
+                                                    <div className="absolute -left-[9px] top-2 w-4 h-4 rounded-full border-2 border-white dark:border-[#1E2024] shadow-sm z-10 bg-emerald-500"></div>
+                                                    <div className="bg-emerald-50/40 dark:bg-emerald-900/5 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/20 opacity-75">
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <span className="font-semibold text-slate-700 dark:text-slate-300">{v.contractorName}</span>
+                                                                <span className="ml-2 text-xs text-slate-400">{v.projectName}</span>
+                                                            </div>
+                                                            <span className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800">已完成</span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-400 mt-1">{v.violationDate}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>

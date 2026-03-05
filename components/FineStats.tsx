@@ -1477,10 +1477,10 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             </select>
                         </div>
                         <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600">
-                            <Download size={14} /> 匙出 Excel
+                            <Download size={14} /> 匯出 Excel
                         </button>
                         <label className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600 cursor-pointer">
-                            <Upload size={14} /> 匙入 Excel
+                            <Upload size={14} /> 匯入 Excel
                             <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} />
                         </label>
                         <button onClick={() => { resetForm(); setIsEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition-colors">

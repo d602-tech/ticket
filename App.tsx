@@ -724,18 +724,23 @@ function App() {
                             <div className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                            {project.sequence !== undefined && (
+                                                <span className="bg-indigo-600 text-white text-[11px] font-black px-2 py-0.5 rounded shadow-sm">
+                                                    #{String(project.sequence).padStart(3, '0')}
+                                                </span>
+                                            )}
+                                            {project.abbreviation && (
+                                                <span className="bg-amber-100 text-amber-700 text-[11px] font-bold px-2 py-0.5 rounded border border-amber-200">
+                                                    {project.abbreviation}
+                                                </span>
+                                            )}
                                             {project.contractNumber ? (
-                                                <span className="bg-slate-800 text-white text-xs font-mono px-2 py-1 rounded shadow-sm flex items-center gap-1">
+                                                <span className="bg-slate-800 text-white text-[11px] font-mono px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
                                                     <FileText size={10} /> {project.contractNumber}
                                                 </span>
                                             ) : (
-                                                <span className="bg-slate-100 text-slate-400 text-xs px-2 py-1 rounded">無契約號</span>
-                                            )}
-                                            {project.sequence !== undefined && (
-                                                <span className="bg-slate-100 text-slate-500 text-xs font-mono px-2 py-1 rounded">
-                                                    #{String(project.sequence).padStart(3, '0')}
-                                                </span>
+                                                <span className="bg-slate-100 text-slate-400 text-[11px] px-2 py-0.5 rounded">無契約號</span>
                                             )}
                                         </div>
                                         <h3 className="font-extrabold text-lg text-slate-800 leading-snug line-clamp-2 min-h-[3.5rem]" title={project.name}>
@@ -754,17 +759,13 @@ function App() {
                                         <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Users size={12} /> 承辦人</div>
                                         <div className="font-medium text-slate-700 truncate">{project.coordinatorName || '-'}</div>
                                     </div>
-                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Hammer size={12} /> 課長</div>
-                                        <div className="font-medium text-slate-700 truncate">{project.sectionChiefName || '-'}</div>
+                                    <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                        <div className="text-xs text-indigo-400 mb-1 flex items-center gap-1"><Hammer size={12} /> 課長</div>
+                                        <div className="font-bold text-indigo-700 truncate">{project.sectionChiefName || '-'}</div>
                                     </div>
                                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                                         <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Hammer size={12} /> 部門主管</div>
                                         <div className="font-medium text-slate-700 truncate">{project.managerName || '-'}</div>
-                                    </div>
-                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Briefcase size={12} /> 工程簡稱</div>
-                                        <div className="font-medium text-slate-700 truncate">{project.abbreviation || '-'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -980,7 +981,7 @@ function App() {
                     </div>
                 </header>
 
-                {view === 'DASHBOARD' && <Dashboard role={currentUserRole} violations={violations} projects={projects} fines={fines} />}
+                {view === 'DASHBOARD' && <Dashboard role={currentUserRole} violations={violations} projects={projects} fines={fines} onEditViolation={(v) => { setEditingViolation(v); setViolationModalOpen(true); }} />}
                 {view === 'VIOLATIONS' && <ViolationList
                     violations={violations}
                     projects={projects}
