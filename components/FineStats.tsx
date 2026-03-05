@@ -46,10 +46,15 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ show: boolean; stage: string; fileName?: string }>({ show: false, stage: '' });
-    const [statsTimeFilter, setStatsTimeFilter] = useState<'ALL' | 'LAST_MONTH' | 'THIS_MONTH' | 'THIS_YEAR'>('ALL');
-    const [statsYearFilter, setStatsYearFilter] = useState<string>('ALL');
+    const [statsTimeFilter, setStatsTimeFilter] = useState<'ALL' | 'LAST_MONTH' | 'THIS_MONTH' | 'THIS_YEAR'>('THIS_YEAR');
+    const [statsYearFilter, setStatsYearFilter] = useState<string>(String(new Date().getFullYear()));
     const [statsProjectFilter, setStatsProjectFilter] = useState<string>('ALL');
     const [statsContractorFilter, setStatsContractorFilter] = useState<string>('ALL');
+    const [rankingMode, setRankingMode] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR'>('THIS_MONTH');
+
+    // Manage list year filter
+    const currentYear = new Date().getFullYear();
+    const [manageYearFilter, setManageYearFilter] = useState<string>(String(currentYear));
 
     // Ticket State
     const [editTicketNumber, setEditTicketNumber] = useState<string | null>(null); // Track if editing existing ticket
@@ -74,6 +79,17 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     // Sorting & Filtering
     const [projectFilter, setProjectFilter] = useState<string>('ALL');
     const [sortConfig, setSortConfig] = useState<{ key: keyof TicketGroup; direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' });
+
+    // Available manage years
+    const availableManageYears = useMemo(() => {
+        const years = new Set<string>();
+        years.add(String(currentYear));
+        fines.forEach(f => {
+            const d = new Date((f.date || '').replace(/\//g, '-'));
+            if (!isNaN(d.getTime())) years.add(String(d.getFullYear()));
+        });
+        return Array.from(years).sort((a, b) => b.localeCompare(a));
+    }, [fines, currentYear]);
 
     // Filtered lists
     const [availableIssuers, setAvailableIssuers] = useState<Section[]>([]);
@@ -727,7 +743,16 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
         let result = Object.values(groups);
 
-        // Filter
+        // Year filter for manage list
+        if (manageYearFilter !== 'ALL') {
+            result = result.filter(g => {
+                if (!g.date) return false;
+                const d = new Date(g.date.replace(/\//g, '-'));
+                return String(d.getFullYear()) === manageYearFilter;
+            });
+        }
+
+        // Project filter
         if (projectFilter !== 'ALL') {
             result = result.filter(g => g.projectName === projectFilter);
         }
@@ -744,7 +769,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
         });
 
         return result;
-    }, [fines, projectFilter, sortConfig]);
+    }, [fines, projectFilter, sortConfig, manageYearFilter]);
 
     const requestSort = (key: keyof TicketGroup) => {
         let direction: 'ascending' | 'descending' = 'ascending';
@@ -867,7 +892,11 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             onChange={e => setStatsProjectFilter(e.target.value)}
                         >
                             <option value="ALL">全部工程</option>
-                            {availableProjects.map(p => <option key={p} value={p}>{p}</option>)}
+                            {availableProjects.map(p => {
+                                const proj = projects.find(pr => pr.name === p);
+                                const label = proj ? `#${String(proj.sequence).padStart(3, '0')} ${proj.abbreviation}` : p;
+                                return <option key={p} value={p}>{label}</option>;
+                            })}
                         </select>
                         <div className="w-px bg-slate-200 my-1"></div>
                         <select
@@ -908,33 +937,62 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
                 {/* Ranking Card for Viewers/Admins */}
                 {
-                    (role === 'viewer' || role === 'admin') && (
-                        <div className="bg-gradient-to-br from-indigo-50/50 via-white to-indigo-50/50 p-6 md:p-8 rounded-2xl shadow-sm border border-indigo-100 mb-8 mt-4">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-indigo-50/50">
-                                <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-lg shadow-sm">
-                                    <TrendingUp className="w-6 h-6" />
+                    (role === 'viewer' || role === 'admin') && (() => {
+                        const now = new Date();
+                        const rankThisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                        const rankLastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        const rankLastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+                        const rankYearStart = new Date(now.getFullYear(), 0, 1);
+
+                        const rankLabel = rankingMode === 'THIS_MONTH' ? '本月' : rankingMode === 'LAST_MONTH' ? '前月' : '本年';
+
+                        const rankFines = filteredFines.filter(f => {
+                            const dStr = f.date || f.issueDate;
+                            if (!dStr || f.isRevoked) return false;
+                            const d = new Date(dStr);
+                            if (rankingMode === 'THIS_MONTH') return d >= rankThisMonthStart;
+                            if (rankingMode === 'LAST_MONTH') return d >= rankLastMonthStart && d <= rankLastMonthEnd;
+                            if (rankingMode === 'THIS_YEAR') return d >= rankYearStart;
+                            return true;
+                        });
+
+                        const rankingData = Object.entries(
+                            rankFines.reduce((acc, curr) => {
+                                const cName = curr.contractor || '未指定';
+                                if (!acc[cName]) acc[cName] = { amount: 0, count: 0 };
+                                acc[cName].amount += (Number(curr.subtotal) || 0);
+                                acc[cName].count += 1;
+                                return acc;
+                            }, {} as Record<string, { amount: number, count: number }>)
+                        ).sort(([, a], [, b]) => b.amount - a.amount).slice(0, 5);
+
+                        return (
+                            <div className="bg-gradient-to-br from-indigo-50/50 via-white to-indigo-50/50 p-6 md:p-8 rounded-2xl shadow-sm border border-indigo-100 mb-8 mt-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-indigo-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-lg shadow-sm">
+                                            <TrendingUp className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-slate-800 text-xl tracking-wide">承担商罰單排行榜 TOP 5</h3>
+                                            <p className="text-sm text-slate-500 mt-1">{rankLabel}累計開單統計最高前五名</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                                        {(['THIS_MONTH', 'LAST_MONTH', 'THIS_YEAR'] as const).map(mode => (
+                                            <button
+                                                key={mode}
+                                                onClick={() => setRankingMode(mode)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${rankingMode === mode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                                    }`}
+                                            >
+                                                {mode === 'THIS_MONTH' ? '本月' : mode === 'LAST_MONTH' ? '前月' : '本年'}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-800 text-xl tracking-wide">當月承攬商罰單排行榜 TOP 5</h3>
-                                    <p className="text-sm text-slate-500 mt-1">本月份累計開單統計最高前五名</p>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-                                {Object.entries(filteredFines.filter(f => {
-                                    const dStr = f.date || f.issueDate;
-                                    if (!dStr) return false;
-                                    const d = new Date(dStr);
-                                    return d >= thisMonthStart && !f.isRevoked;
-                                }).reduce((acc, curr) => {
-                                    const cName = curr.contractor || '未指定';
-                                    if (!acc[cName]) acc[cName] = { amount: 0, count: 0 };
-                                    acc[cName].amount += (Number(curr.subtotal) || 0);
-                                    acc[cName].count += 1;
-                                    return acc;
-                                }, {} as Record<string, { amount: number, count: number }>))
-                                    .sort(([, a], [, b]) => b.amount - a.amount)
-                                    .slice(0, 5)
-                                    .map(([name, data], idx) => (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+                                    {rankingData.map(([name, data], idx) => (
                                         <div key={name} className="bg-white rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col justify-between hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                                             <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full opacity-[0.08] group-hover:opacity-15 transition-opacity ${idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-amber-700' : 'bg-indigo-500'}`}></div>
                                             <div>
@@ -943,71 +1001,79 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                                                     <span className="font-bold text-slate-700 truncate flex-1 text-base" title={name}>{name}</span>
                                                 </div>
                                                 <div className="z-10 relative bg-slate-50/80 rounded-lg p-2.5 border border-slate-100/50">
-                                                    <span className="text-xs text-slate-500 block mb-1">本月累計</span>
+                                                    <span className="text-xs text-slate-500 block mb-1">{rankLabel}累計</span>
                                                     <span className="font-medium text-slate-700">{data.count} <span className="text-xs">件</span></span>
                                                 </div>
                                             </div>
                                             <div className="mt-4 pt-4 border-t border-slate-100 z-10 relative flex flex-col">
-                                                <span className="text-xs text-slate-500 mb-1">總罰款金額</span>
+                                                <span className="text-xs text-slate-500 mb-1">罰款金額</span>
                                                 <span className={`text-2xl font-bold tracking-tight ${idx === 0 ? 'text-amber-600' : 'text-rose-600'}`}>
                                                     <span className="text-sm mr-1">$</span>{data.amount.toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>
                                     ))}
-                                {Object.keys(filteredFines.filter(f => {
-                                    const dStr = f.date || f.issueDate;
-                                    if (!dStr) return false;
-                                    const d = new Date(dStr);
-                                    return d >= thisMonthStart && !f.isRevoked;
-                                })).length === 0 && (
+                                    {rankingData.length === 0 && (
                                         <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white/50 rounded-xl border border-dashed border-slate-200">
                                             <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
-                                            <p className="text-sm font-medium">本月目前無任何罰單數據</p>
+                                            <p className="text-sm font-medium">{rankLabel}目前無任何罰單數據</p>
                                         </div>
                                     )}
+                                </div>
                             </div>
-                        </div>
-                    )
+                        );
+                    })()
                 }
 
-                {/* Yearly Trend Chart */}
+                {/* Contractor Ranking Chart (replaces Yearly Trend) */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
                     <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                         <TrendingUp size={20} className="text-indigo-500" />
-                        歷年罰款趨勢總覽
+                        各承擄商罰款統計排名
+                        <span className="ml-auto text-xs font-normal text-slate-400">依筛選條件未撤銷罰單總金</span>
                     </h3>
-                    {yearData.length > 0 ? (
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={yearData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" tickFormatter={(v) => `${v}年`} />
-                                    <YAxis yAxisId="left" />
-                                    <YAxis yAxisId="right" orientation="right" />
-                                    <Tooltip
-                                        formatter={(value, name) => [
-                                            name === '金額' ? `$${Number(value).toLocaleString()}` : `${value} 件`,
-                                            name
-                                        ]}
-                                        labelFormatter={(label) => `${label} 年度`}
-                                    />
-                                    <Legend />
-                                    <Bar yAxisId="left" dataKey="value" fill="#8884d8" name="金額" radius={[4, 4, 0, 0]}>
-                                        {yearData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Bar>
-                                    <Bar yAxisId="right" dataKey="count" fill="#82ca9d" name="開單件數" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    ) : (
-                        <div className="text-center text-slate-400 py-10 flex flex-col items-center">
-                            <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
-                            無歷年數據，請調整篩選條件
-                        </div>
-                    )}
+                    {(() => {
+                        const contractorData = Object.entries(
+                            filteredFines
+                                .filter(f => !f.isRevoked)
+                                .reduce((acc, curr) => {
+                                    const name = curr.contractor || '未指定';
+                                    if (!acc[name]) acc[name] = { value: 0, count: 0 };
+                                    acc[name].value += (Number(curr.subtotal) || 0);
+                                    acc[name].count += 1;
+                                    return acc;
+                                }, {} as Record<string, { value: number, count: number }>)
+                        )
+                            .sort(([, a], [, b]) => b.value - a.value)
+                            .slice(0, 10)
+                            .map(([name, { value, count }]) => ({ name, value, count }));
+
+                        return contractorData.length > 0 ? (
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={contractorData} layout="vertical" margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" tickFormatter={(v) => `$${Number(v).toLocaleString()}`} tick={{ fontSize: 12 }} />
+                                        <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            formatter={(value, name) => name === '罰款金額' ? [`$${Number(value).toLocaleString()}`, name] : [`${value} 件`, name]}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="value" fill="#6366f1" name="罰款金額" radius={[0, 4, 4, 0]}>
+                                            {contractorData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="text-center text-slate-400 py-10 flex flex-col items-center">
+                                <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
+                                無承擄商數據，請調整篩選條件
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1385,22 +1451,42 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
 
         return (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-500">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
+                <div className="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
+                    <div className="flex items-center gap-3">
                         <h3 className="font-bold text-slate-700">罰單列表 (依單號群組)</h3>
-                        <div className="flex gap-2">
-                            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600">
-                                <Download size={14} /> 匯出 Excel
-                            </button>
-                            <label className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600 cursor-pointer">
-                                <Upload size={14} /> 匯入 Excel
-                                <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} />
-                            </label>
-                        </div>
+                        {manageYearFilter !== String(currentYear) && (
+                            <span className="px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full border border-orange-200">
+                                ⚠️ 歷史資料 ({manageYearFilter}年)
+                            </span>
+                        )}
                     </div>
-                    <button onClick={() => { resetForm(); setIsEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition-colors">
-                        <Plus size={16} /> 新增罰單
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Year filter for manage list */}
+                        <div className="flex items-center gap-1">
+                            <span className="text-xs text-slate-500 font-medium">年度：</span>
+                            <select
+                                value={manageYearFilter}
+                                onChange={e => setManageYearFilter(e.target.value)}
+                                className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
+                            >
+                                {availableManageYears.map(y => (
+                                    <option key={y} value={y}>
+                                        {y === String(currentYear) ? `${y} 年 (本年)` : `${y} 年`}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600">
+                            <Download size={14} /> 匙出 Excel
+                        </button>
+                        <label className="flex items-center gap-1 px-3 py-1.5 border hover:bg-slate-50 rounded text-sm text-slate-600 cursor-pointer">
+                            <Upload size={14} /> 匙入 Excel
+                            <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImport} />
+                        </label>
+                        <button onClick={() => { resetForm(); setIsEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition-colors">
+                            <Plus size={16} /> 新增罰單
+                        </button>
+                    </div>
                 </div>
                 {/* Filter Toolbar */}
                 <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
@@ -1414,7 +1500,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                         >
                             <option value="ALL">全部工程</option>
                             {projects.map(p => (
-                                <option key={p.id} value={p.name}>{p.name}</option>
+                                <option key={p.id} value={p.name}>#{String(p.sequence).padStart(3, '0')} {p.abbreviation}</option>
                             ))}
                         </select>
                     </div>

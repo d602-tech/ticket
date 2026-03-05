@@ -26,6 +26,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
     const [viewerSortConfig, setViewerSortConfig] = useState<{ key: keyof Fine | 'amount', direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' }); // Viewer Mode Sort
     const [statusPieMode, setStatusPieMode] = useState<'AMOUNT' | 'COUNT'>('AMOUNT');
     const [statusGroupBy, setStatusGroupBy] = useState<'TEAM' | 'CONTRACTOR'>('TEAM');
+    const currentYear = new Date().getFullYear();
+    const [dashboardYear, setDashboardYear] = useState<number>(currentYear); // Year filter for KPI
     const [dashboardMonth, setDashboardMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -44,17 +46,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         return colors[team || ''] || { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
     };
 
+    // Available years for year picker
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        years.add(currentYear);
+        fines.forEach(f => {
+            const d = new Date((f.date || f.issueDate || '').replace(/\//g, '-'));
+            if (!isNaN(d.getTime())) years.add(d.getFullYear());
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [fines, currentYear]);
+
     // Memoize Statistics to prevent re-calculation on every render
     const stats = useMemo(() => {
         const pendingCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED).length;
         const overdueCount = violations.filter(v => v.status !== ViolationStatus.COMPLETED && getDaysRemaining(v.lectureDeadline) < 0).length;
         // Previously totalFineAmount was derived from violations (lecture fees)
         const totalViolationAmount = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
-        // New: Total from Fines sheet
-        const totalRealFineAmount = fines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
+        // Year-filtered total from Fines sheet
+        const yearFines = fines.filter(f => {
+            const d = new Date((f.date || f.issueDate || '').replace(/\//g, '-'));
+            return !isNaN(d.getTime()) && d.getFullYear() === dashboardYear;
+        });
+        const totalRealFineAmount = yearFines.reduce((sum, f) => sum + (Number(f.subtotal) || 0), 0);
+        const totalFineCount = yearFines.length;
 
         const completedCount = violations.filter(v => v.status === ViolationStatus.COMPLETED).length;
-        const totalFineCount = fines.length;
 
         // Current Dashboard Month Parsing
         const [year, month] = dashboardMonth.split('-').map(Number);
@@ -78,8 +95,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         return {
             pendingCount,
             overdueCount,
-            totalViolationAmount, // Renamed
-            totalRealFineAmount, // New
+            totalViolationAmount,
+            totalRealFineAmount,
             completedCount,
             totalFineCount,
             monthlyFineAmount,
@@ -89,7 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
             year,
             month
         };
-    }, [violations, fines, dashboardMonth]);
+    }, [violations, fines, dashboardMonth, dashboardYear]);
 
     // Chart Data Memoization
     const chartData = useMemo(() => {
@@ -378,14 +395,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
     return (
         <div className="animate-fade-in space-y-6">
             {/* Header & Stats */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">{stats.year}年{stats.month}月 罰款統計</h2>
-                <input
-                    type="month"
-                    value={dashboardMonth}
-                    onChange={e => setDashboardMonth(e.target.value)}
-                    className="border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white shadow-sm"
-                />
+                <div className="flex items-center gap-2">
+                    {/* Year Picker for KPI total */}
+                    <select
+                        value={dashboardYear}
+                        onChange={e => setDashboardYear(Number(e.target.value))}
+                        className="border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white shadow-sm font-medium"
+                        title="選擇統計年度"
+                    >
+                        {availableYears.map(y => (
+                            <option key={y} value={y}>{y} 年度</option>
+                        ))}
+                    </select>
+                    <input
+                        type="month"
+                        value={dashboardMonth}
+                        onChange={e => setDashboardMonth(e.target.value)}
+                        className="border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white shadow-sm"
+                    />
+                </div>
             </div>
 
             {/* KPI Metrics Grid - Material 3 Style */}
@@ -398,10 +428,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
                             <div className="p-4 bg-white/20 text-white rounded-2xl backdrop-blur-md group-hover:scale-110 transition-transform">
                                 <DollarSign size={28} strokeWidth={2.5} />
                             </div>
-                            <span className="text-xs font-bold px-3 py-1.5 bg-white/20 text-white rounded-xl backdrop-blur-md">累積總額</span>
+                            <span className="text-xs font-bold px-3 py-1.5 bg-white/20 text-white rounded-xl backdrop-blur-md">{dashboardYear} 年度</span>
                         </div>
                         <div>
-                            <h3 className="text-indigo-100 font-medium text-sm tracking-wider uppercase mb-1">罰款總額</h3>
+                            <h3 className="text-indigo-100 font-medium text-sm tracking-wider uppercase mb-1">年度罰款總額</h3>
                             <div className="text-4xl font-black text-white tracking-tight">
                                 ${stats.totalRealFineAmount.toLocaleString()}
                             </div>
