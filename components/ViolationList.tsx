@@ -18,11 +18,12 @@ interface ViolationListProps {
     onGenerateDoc: (v: Violation) => void;
     onUploadScan: (v: Violation, isReplace: boolean) => void;
     onEmail: (v: Violation) => void;
+    onConfigProject: (projectName: string) => void;
 }
 
 export const ViolationList: React.FC<ViolationListProps> = ({
     violations, projects, fines, hostTeams, isLoading,
-    onAdd, onEdit, onDelete, onGenerateDoc, onUploadScan, onEmail
+    onAdd, onEdit, onDelete, onGenerateDoc, onUploadScan, onEmail, onConfigProject
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ViolationStatus | 'ALL'>('ALL');
@@ -120,6 +121,19 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         <div className="flex-1 mr-2">
                                             <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 leading-snug">{violation.contractorName}</h3>
                                             <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">{violation.projectName}</p>
+                                            {(() => {
+                                                const proj = projects.find(p => p.name === violation.projectName);
+                                                return (
+                                                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
+                                                        <span className="text-slate-500">
+                                                            承辦：{proj?.coordinatorName ? <span className="text-slate-700 dark:text-slate-300 font-medium">{proj.coordinatorName}</span> : <button onClick={() => onConfigProject(violation.projectName)} className="text-red-500 font-bold hover:underline underline-offset-2">尚未設定</button>}
+                                                        </span>
+                                                        <span className="text-slate-500">
+                                                            主管：{proj?.managerName ? <span className="text-slate-700 dark:text-slate-300 font-medium">{proj.managerName}</span> : <button onClick={() => onConfigProject(violation.projectName)} className="text-red-500 font-bold hover:underline underline-offset-2">尚未設定</button>}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                             {violation.ticketNumbers && (
                                                 <p className="text-xs text-indigo-500 dark:text-indigo-400 font-mono mt-1 break-all">
                                                     🎟️ {violation.ticketNumbers}
@@ -211,6 +225,19 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-slate-900 dark:text-slate-100">{violation.contractorName}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{violation.projectName}</div>
+                                            {(() => {
+                                                const proj = projects.find(p => p.name === violation.projectName);
+                                                return (
+                                                    <div className="mt-1 flex items-center gap-3 text-[10px] whitespace-nowrap">
+                                                        <span className="text-slate-400">
+                                                            承辦：{proj?.coordinatorName ? <span className="text-slate-600 dark:text-slate-300 font-medium">{proj.coordinatorName}</span> : <button onClick={() => onConfigProject(violation.projectName)} className="text-red-500 font-bold hover:underline underline-offset-2">尚未設定</button>}
+                                                        </span>
+                                                        <span className="text-slate-400">
+                                                            主管：{proj?.managerName ? <span className="text-slate-600 dark:text-slate-300 font-medium">{proj.managerName}</span> : <button onClick={() => onConfigProject(violation.projectName)} className="text-red-500 font-bold hover:underline underline-offset-2">尚未設定</button>}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                             {violation.ticketNumbers && (
                                                 <div className="text-xs text-indigo-500 dark:text-indigo-400 font-mono mt-1 w-48 break-all">
                                                     🎟️ {violation.ticketNumbers}
