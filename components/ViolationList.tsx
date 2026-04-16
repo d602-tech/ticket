@@ -344,7 +344,7 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex gap-2 mb-3">
+                                            <div className="flex flex-wrap gap-2 mb-3">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${violation.status === ViolationStatus.COMPLETED ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400' :
                                                     violation.status === ViolationStatus.NOTIFIED ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400' :
                                                         violation.status === ViolationStatus.SUBMITTED ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400' :
@@ -365,6 +365,15 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                                 ) : (
                                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100/50 text-slate-500 border border-slate-200">
                                                         <FileText size={10} className="mr-1" /> 尚未上傳陳核單
+                                                    </span>
+                                                )}
+                                                {violation.completionReportFileUrl ? (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100/50 text-emerald-600 border border-emerald-200">
+                                                        <FileCheck size={10} className="mr-1" /> 完成報告已上傳
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100/50 text-slate-500 border border-slate-200">
+                                                        <FileCheck size={10} className="mr-1" /> 尚未上傳完成報告
                                                     </span>
                                                 )}
                                             </div>

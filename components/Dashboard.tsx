@@ -146,9 +146,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, violations, projects
         });
         const teamChartData = Array.from(teamDataMap, ([name, { currAmount, prevAmount, currCount, prevCount }]) => ({ name, currAmount, prevAmount, currCount, prevCount }));
 
-        // 2. Group by Host Team or Contractor (for Status Pie)
+        // 2. Group by Host Team or Contractor (for Status Pie) - Default to Selected Month
         const statusDataMap = new Map<string, { amount: number; count: number }>();
         fines.forEach(f => {
+            if (!f.date) return;
+            const fDate = new Date(f.date.replace(/\//g, '-'));
+            const isCurrentMonth = fDate.getFullYear() === targetYear && (fDate.getMonth() + 1) === targetMonth;
+            if (!isCurrentMonth) return;
+
             const label = statusGroupBy === 'TEAM' ? (f.hostTeam || '未歸類') : (f.contractor || '未分類');
             const displayLabel = label === '' ? '未分類' : label;
 

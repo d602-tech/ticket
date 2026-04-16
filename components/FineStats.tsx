@@ -146,6 +146,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 setCurrentTicket(prev => ({
                     ...prev,
                     hostTeam: proj.hostTeam,
+                    coorganizingTeam: proj.hostTeam,
                     contractor: proj.contractor,
                     ticketNumber: newTicketNumber || prev.ticketNumber // Update only if generated, else keep
                 }));
@@ -157,14 +158,15 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
     // Yes.
 
 
-    // Update Issuers based on Host Team
+    // Update Issuers based on Coorganizing Team (or Host Team as fallback)
     useEffect(() => {
-        if (currentTicket.hostTeam) {
-            setAvailableIssuers(sections.filter(s => s.hostTeam === currentTicket.hostTeam));
+        const teamToUse = currentTicket.coorganizingTeam || currentTicket.hostTeam;
+        if (teamToUse) {
+            setAvailableIssuers(sections.filter(s => s.hostTeam === teamToUse));
         } else {
             setAvailableIssuers([]);
         }
-    }, [currentTicket.hostTeam, sections]);
+    }, [currentTicket.coorganizingTeam, currentTicket.hostTeam, sections]);
 
     // --- Effects for Item Level ---
 
@@ -279,6 +281,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
             ticketType: currentTicket.ticketType,
             cctvType: currentTicket.cctvType,
             allocation: currentTicket.allocation,
+            coorganizingTeam: currentTicket.coorganizingTeam || currentTicket.hostTeam,
             seq: Date.now().toString() + Math.random().toString(36).substr(2, 5)
         };
 
@@ -487,6 +490,7 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                 ticketType: first.ticketType,
                 cctvType: first.cctvType,
                 allocation: first.allocation,
+                coorganizingTeam: first.coorganizingTeam || first.hostTeam,
                 note: first.note,
                 scanFileName: first.scanFileName,
                 scanFileUrl: first.scanFileUrl
@@ -1234,10 +1238,16 @@ export function FineStats({ projects, fines, fineList, sections, onSaveFines, on
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">主辦工作隊</label>
-                                <div className="p-2 bg-slate-100 rounded-lg text-slate-600 text-sm h-10 flex items-center">
-                                    {currentTicket.hostTeam || '-'}
-                                </div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">主/協辦工作隊</label>
+                                <select className="w-full p-2 border rounded-lg"
+                                    value={currentTicket.coorganizingTeam || currentTicket.hostTeam || ''}
+                                    onChange={e => setCurrentTicket({ ...currentTicket, coorganizingTeam: e.target.value })}
+                                >
+                                    <option value="">請選擇...</option>
+                                    {Array.from(new Set(sections.map(s => s.hostTeam).filter(Boolean))).map(team => (
+                                        <option key={team} value={team}>{team}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">開單人 *</label>

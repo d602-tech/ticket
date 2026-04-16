@@ -53,6 +53,7 @@ export interface Fine {
   unitPriceAdjNote?: string;// 單價修改備註
   priceAdjustmentReason?: string; // 單價修改原因
   relationship?: string;   // 關係 (預設: 舊約)
+  coorganizingTeam?: string; // 協辦工作隊
   count?: number | string;          // 件數
   multiplier?: number | string;     // 倍數
   subtotal?: number | string;       // 單項金額

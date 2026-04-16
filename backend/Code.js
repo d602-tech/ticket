@@ -76,6 +76,7 @@ var HEADER_MAP = {
     'ticketNumber': '罰單編號',
     'projectName': '工程名稱',
     'hostTeam': '主辦工作隊',
+    'coorganizingTeam': '協辦工作隊',
     'issuer': '開單人',
     'contractor': '承攬商',
     'violationItem': '違規項目',
