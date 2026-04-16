@@ -321,6 +321,52 @@ function App() {
         input.click();
     };
 
+    // Completion Report Upload
+    const handleUploadCompletionReport = async (violation: Violation, isReplace: boolean = false) => {
+        if (isReplace && !confirm('確定要替換現有的完成報告嗎？')) return;
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf,image/*';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64 = (reader.result as string).split(',')[1];
+                setIsLoading(true);
+                try {
+                    const response = await fetch(getApiUrl()!, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'uploadCompletionReport',
+                            violationId: violation.id,
+                            fileData: base64,
+                            fileName: file.name,
+                            mimeType: file.type
+                        })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        setViolations(prev => prev.map(v =>
+                            v.id === violation.id ? { ...v, completionReportFileUrl: result.completionReportFileUrl, completionReportFileName: result.completionReportFileName } : v
+                        ));
+                        alert('上傳成功');
+                    } else {
+                        alert('上傳失敗: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('上傳發生錯誤');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+        };
+        input.click();
+    };
+
     // Document Generation
     const handleGenerateDocument = async (violation: Violation) => {
         if (!confirm(`確定要生成 ${violation.contractorName} 的簽辦單嗎？`)) return;
@@ -972,6 +1018,17 @@ function App() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        {currentUserRole === 'admin' && (
+                            <div className="hidden md:flex items-center gap-3 mr-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <a href="https://docs.google.com/spreadsheets/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-700 px-2 py-1 rounded transition-colors" title="Google Sheets">
+                                    <Database size={16} /> Google Sheet
+                                </a>
+                                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
+                                <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 px-2 py-1 rounded transition-colors" title="Google Drive">
+                                    <Database size={16} /> Google Drive
+                                </a>
+                            </div>
+                        )}
                         <button
                             onClick={() => setIsDarkMode(!isDarkMode)}
                             className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -993,6 +1050,7 @@ function App() {
                     onDelete={handleDeleteViolation}
                     onGenerateDoc={handleGenerateDocument}
                     onUploadScan={handleUploadScanFile}
+                    onUploadCompletionReport={handleUploadCompletionReport}
                     onEmail={(v) => openEmailModal(v)}
                     onConfigProject={handleConfigProject}
                 />}

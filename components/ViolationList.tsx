@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     Search, Filter, Briefcase, Plus, Mail, FileText, Upload, RefreshCw, Edit2, Trash2,
-    FileWarning, Download, CheckCircle2, Clock
+    FileWarning, Download, CheckCircle2, Clock, FileCheck
 } from 'lucide-react';
 import { Violation, Project, ViolationStatus, Fine } from '../types';
 import { getDaysRemaining, formatDate, getStatusLabel } from '../utils';
@@ -17,13 +17,14 @@ interface ViolationListProps {
     onDelete: (id: string) => void;
     onGenerateDoc: (v: Violation) => void;
     onUploadScan: (v: Violation, isReplace: boolean) => void;
+    onUploadCompletionReport: (v: Violation, isReplace: boolean) => void;
     onEmail: (v: Violation) => void;
     onConfigProject: (projectName: string) => void;
 }
 
 export const ViolationList: React.FC<ViolationListProps> = ({
     violations, projects, fines, hostTeams, isLoading,
-    onAdd, onEdit, onDelete, onGenerateDoc, onUploadScan, onEmail, onConfigProject
+    onAdd, onEdit, onDelete, onGenerateDoc, onUploadScan, onUploadCompletionReport, onEmail, onConfigProject
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ViolationStatus | 'ALL'>('ALL');
@@ -181,8 +182,16 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                         <button
                                             onClick={() => violation.scanFileUrl ? window.open(violation.scanFileUrl, '_blank') : onUploadScan(violation, false)}
                                             className={`p-2 rounded-lg ${violation.scanFileUrl ? 'text-purple-600 bg-purple-50' : 'text-slate-500 hover:bg-slate-100'}`}
+                                            title="簽辦單"
                                         >
                                             <Upload size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => violation.completionReportFileUrl ? window.open(violation.completionReportFileUrl, '_blank') : onUploadCompletionReport(violation, false)}
+                                            className={`p-2 rounded-lg ${violation.completionReportFileUrl ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:bg-slate-100'}`}
+                                            title="完成報告"
+                                        >
+                                            <FileCheck size={18} />
                                         </button>
                                         <button
                                             onClick={() => onEdit(violation)}
@@ -292,6 +301,28 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                                     無陳核掃描檔
                                                 </div>
                                             )}
+                                            {/* 完成報告顯示 */}
+                                            {violation.completionReportFileUrl ? (
+                                                <a
+                                                    href={violation.completionReportFileUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center gap-1 mt-1 text-xs text-emerald-600 cursor-pointer hover:underline"
+                                                >
+                                                    <Download size={12} />
+                                                    查看完成報告 ({violation.completionReportFileName || '完成報告附件'})
+                                                </a>
+                                            ) : violation.completionReportFileName ? (
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-emerald-400">
+                                                    <FileCheck size={12} />
+                                                    {violation.completionReportFileName} (處理中/未完成上傳)
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+                                                    <FileCheck size={12} />
+                                                    無完成報告
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-slate-600 dark:text-slate-300">
@@ -380,6 +411,25 @@ export const ViolationList: React.FC<ViolationListProps> = ({
                                                         onClick={() => onUploadScan(violation, true)}
                                                         className="p-1.5 text-orange-500 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all"
                                                         title="替換掃描檔（需填寫原因）"
+                                                    >
+                                                        <RefreshCw size={18} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => violation.completionReportFileUrl ? window.open(violation.completionReportFileUrl, '_blank') : onUploadCompletionReport(violation, false)}
+                                                    className={`p-1.5 rounded-lg transition-all ${violation.completionReportFileUrl
+                                                        ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                                        : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                                        }`}
+                                                    title={violation.completionReportFileUrl ? `查看 ${violation.completionReportFileName}` : '上傳完成報告'}
+                                                >
+                                                    <FileCheck size={18} />
+                                                </button>
+                                                {violation.completionReportFileUrl && (
+                                                    <button
+                                                        onClick={() => onUploadCompletionReport(violation, true)}
+                                                        className="p-1.5 text-orange-500 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all"
+                                                        title="替換完成報告"
                                                     >
                                                         <RefreshCw size={18} />
                                                     </button>

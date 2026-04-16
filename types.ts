@@ -33,6 +33,8 @@ export interface Violation {
   participants?: string; // 應參加講習人員
   completionDate?: string; // 完成日期 YYYY-MM-DD
   ticketNumbers?: string; // 連結罰單編號 (逗號分隔)
+  completionReportFileName?: string; // 完成報告檔名
+  completionReportFileUrl?: string; // 完成報告檔案連結
 }
 
 export interface Fine {

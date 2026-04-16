@@ -9,6 +9,14 @@ interface Version {
 
 const versions: Version[] = [
     {
+        version: 'v1.9',
+        date: '2026-04-16',
+        features: [
+            '[新增] 違規紀錄頁面支援上傳完成報告與圖示。請於 Google Sheet「Violations」分頁新增「完成報告檔名」與「完成報告連結」兩欄。',
+            '[新增] 系統管理員帳號能在右上角看到 Google Sheet 與 Google Drive 的快速連結。'
+        ]
+    },
+    {
         version: 'v1.8',
         date: '2026-03-04',
         features: [

@@ -35,7 +35,9 @@ var HEADER_MAP = {
     'isMajorViolation': '重大違規',
     'participants': '參加人員',
     'completionDate': '完成日期',
-    'ticketNumbers': '連結罰單編號'
+    'ticketNumbers': '連結罰單編號',
+    'completionReportFileName': '完成報告檔名',
+    'completionReportFileUrl': '完成報告連結'
   },
   'Projects': {
     'id': '此欄位請勿更動 (ID)',
@@ -199,6 +201,10 @@ function handleRequest(e) {
         case 'uploadScanFile':
           ensureSheetInitialized(ss, 'Violations');
           return jsonOutput(handleUploadScanFile(ss, data));
+
+        case 'uploadCompletionReport':
+          ensureSheetInitialized(ss, 'Violations');
+          return jsonOutput(handleUploadCompletionReport(ss, data));
 
         case 'uploadEvidence':
           ensureSheetInitialized(ss, 'Violations');
@@ -721,6 +727,30 @@ function handleUploadScanFile(ss, data) {
     }
 
     return { success: true, scanFileUrl: scanFileUrl, scanFileName: fileName, wasReplaced: !!replaceReason };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function handleUploadCompletionReport(ss, data) {
+  try {
+    var scanFolder = DriveApp.getFolderById(CONFIG.SCAN_FOLDER_ID);
+    var fileData = data.fileData;
+    var fileName = data.fileName || '完成報告_' + Utilities.formatDate(new Date(), "Asia/Taipei", "yyyyMMdd");
+    var mimeType = data.mimeType || 'application/pdf';
+
+    var blob = Utilities.newBlob(Utilities.base64Decode(fileData), mimeType, fileName);
+    var uploadedFile = scanFolder.createFile(blob);
+    uploadedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    var fileUrl = uploadedFile.getUrl();
+
+    if (data.violationId) {
+      updateViolationField(ss, data.violationId, 'completionReportFileName', function () { return fileName; });
+      updateViolationField(ss, data.violationId, 'completionReportFileUrl', function () { return fileUrl; });
+    }
+
+    return { success: true, completionReportFileUrl: fileUrl, completionReportFileName: fileName };
   } catch (e) {
     return { success: false, error: e.message };
   }
